@@ -32,4 +32,8 @@ services:
     envVars:
       - key: REACT_APP_API_URL
         value: https://epr-backend.onrender.com/api  # Will update after backend deploy
+    redirects:
+      - source: /*
+        destination: /index.html
+        type: rewrite
     plan: free
