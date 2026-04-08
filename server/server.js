@@ -14,7 +14,7 @@ app.set('trust proxy', 1);
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: process.env.FRONTEND_URL ||'https://epr-frontend-fpzw.onrender.com'|| 'http://localhost:3000',
   credentials: true
 }));
 app.use(express.json());
