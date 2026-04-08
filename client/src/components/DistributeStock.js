@@ -241,7 +241,14 @@ const DistributeStock = () => {
   };
 
   const toggleExpand = (id) => {
-    setExpandedItems(prev => ({ ...prev, [id]: !prev[id] }));
+    setExpandedItems(prev => {
+      // If clicking the same item, close it. If clicking different item, open only that one.
+      const isCurrentlyExpanded = prev[id];
+      if (isCurrentlyExpanded) {
+        return {}; // Close current
+      }
+      return { [id]: true }; // Open only the new one, close others
+    });
   };
 
   const openEditModal = (transaction) => {

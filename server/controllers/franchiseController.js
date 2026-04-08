@@ -71,6 +71,97 @@ const getFranchise = async (req, res) => {
   }
 };
 
+// @desc    Get franchise details with shops, stock, sales and returns
+// @route   GET /api/franchises/:id/details
+// @access  Private (Owner only)
+const getFranchiseDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get franchise
+    const franchise = await Franchise.findById(id).lean();
+    if (!franchise) {
+      return res.status(404).json({ message: 'Franchise not found' });
+    }
+
+    // Get associated user
+    const user = await User.findOne({ franchiseId: id }).lean();
+
+    // Get all shops for this franchise
+    const Shop = require('../models/Shop');
+    const shops = await Shop.find({ franchiseId: id }).lean();
+
+    // Get all transactions for this franchise's shops
+    const Transaction = require('../models/Transaction');
+    const shopIds = shops.map(s => s._id.toString());
+    
+    const salesTransactions = await Transaction.find({
+      shopId: { $in: shopIds },
+      type: 'sale'
+    }).sort({ createdAt: -1 }).lean();
+
+    const returnTransactions = await Transaction.find({
+      shopId: { $in: shopIds },
+      type: 'return'
+    }).sort({ createdAt: -1 }).lean();
+
+    // Calculate totals
+    const totalSales = salesTransactions.reduce((sum, t) => sum + (t.totalQuantity || 0), 0);
+    const totalReturns = returnTransactions.reduce((sum, t) => sum + (t.totalQuantity || 0), 0);
+    const totalShops = shops.length;
+
+    // Calculate stock allocated to franchise
+    const totalStockAllocated = Object.values(franchise.stock || {}).reduce((sum, val) => sum + val, 0);
+
+    // Calculate total sold by flavor
+    const salesByFlavor = {};
+    salesTransactions.forEach(t => {
+      t.items?.forEach(item => {
+        const flavor = item.flavor.toLowerCase();
+        salesByFlavor[flavor] = (salesByFlavor[flavor] || 0) + item.quantity;
+      });
+    });
+
+    // Calculate returns by flavor
+    const returnsByFlavor = {};
+    returnTransactions.forEach(t => {
+      t.items?.forEach(item => {
+        const flavor = item.flavor.toLowerCase();
+        returnsByFlavor[flavor] = (returnsByFlavor[flavor] || 0) + item.quantity;
+      });
+    });
+
+    res.json({
+      success: true,
+      details: {
+        franchise,
+        user: user ? {
+          _id: user._id,
+          username: user.username,
+          email: user.email,
+          onlineStatus: user.onlineStatus,
+          lastActive: user.lastActive
+        } : null,
+        shops,
+        stats: {
+          totalShops,
+          totalSales,
+          totalReturns,
+          totalStockAllocated,
+          salesByFlavor,
+          returnsByFlavor,
+          currentStock: franchise.stock || {}
+        },
+        recentSales: salesTransactions.slice(0, 10),
+        recentReturns: returnTransactions.slice(0, 10)
+      }
+    });
+  } catch (error) {
+    console.error('Error getting franchise details:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // @desc    Update franchise
 // @route   PUT /api/franchises/:id
 // @access  Private (Owner only)
@@ -168,6 +259,7 @@ const getFranchiseAnalytics = async (req, res) => {
 module.exports = {
   getFranchises,
   getFranchise,
+  getFranchiseDetails,
   updateFranchise,
   deleteFranchise,
   getFranchiseAnalytics

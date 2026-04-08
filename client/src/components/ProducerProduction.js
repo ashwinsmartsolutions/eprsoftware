@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { productionAPI } from '../services/api';
-import { Plus, History, Factory } from 'lucide-react';
+import { Plus, History, Factory, ChevronDown, ChevronUp } from 'lucide-react';
 
 const ProducerProduction = () => {
   const [productionHistory, setProductionHistory] = useState([]);
@@ -8,6 +8,7 @@ const ProducerProduction = () => {
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [expandedItems, setExpandedItems] = useState({});
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0], // Today's date as default
@@ -94,6 +95,67 @@ const ProducerProduction = () => {
   ];
 
   const totalProduced = Object.values(inventory).reduce((sum, val) => sum + val, 0);
+
+  // Group production history by date
+  const groupProductionByDate = (records) => {
+    const grouped = {};
+    
+    records.forEach(record => {
+      const date = new Date(record.date || record.createdAt).toDateString();
+      
+      if (!grouped[date]) {
+        grouped[date] = {
+          date: record.date || record.createdAt,
+          totalQuantity: 0,
+          records: [],
+          flavorTotals: {}
+        };
+      }
+      
+      const recordTotal = record.totalProduced || Object.values(record.stock).reduce((a, b) => a + b, 0);
+      grouped[date].totalQuantity += recordTotal;
+      grouped[date].records.push(record);
+      
+      // Aggregate flavors
+      flavors.forEach(flavor => {
+        const qty = record.stock[flavor.key] || 0;
+        if (!grouped[date].flavorTotals[flavor.key]) {
+          grouped[date].flavorTotals[flavor.key] = 0;
+        }
+        grouped[date].flavorTotals[flavor.key] += qty;
+      });
+    });
+    
+    return Object.values(grouped);
+  };
+
+  const toggleExpand = (id) => {
+    setExpandedItems(prev => {
+      const isCurrentlyExpanded = prev[id];
+      if (isCurrentlyExpanded) {
+        return {}; // Close current
+      }
+      return { [id]: true }; // Open only the new one, close others
+    });
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const formatDateOnly = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
 
   return (
     <div className="section-spacing">
@@ -245,40 +307,130 @@ const ProducerProduction = () => {
             <p className="text-gray-500 mb-4 max-w-sm mx-auto text-sm sm:text-base">Start recording your daily production to track inventory.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="table w-full">
-              <thead className="table-header">
-                <tr>
-                  <th className="table-cell px-3 sm:px-4 py-3 text-left">Date</th>
-                  {flavors.map(f => (
-                    <th key={f.key} className="table-cell px-2 sm:px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <div className={`w-2 h-2 rounded ${f.color}`}></div>
-                        <span className="hidden sm:inline">{f.label}</span>
+          <div className="space-y-3">
+            {/* Summary */}
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+              <p className="text-sm font-medium text-gray-700">
+                Showing {groupProductionByDate(productionHistory).length} grouped production record{groupProductionByDate(productionHistory).length !== 1 ? 's' : ''}
+                <span className="text-gray-500"> ({productionHistory.length} individual entries)</span>
+              </p>
+            </div>
+            
+            {groupProductionByDate(productionHistory).map((group, index) => (
+              <div
+                key={group.date}
+                className="card hover:shadow-lg transition-all duration-200 border-l-4 border-l-purple-500 py-2 px-3"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  {/* Left: Serial & Date */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-900 font-medium w-6">
+                      {index + 1}.
+                    </span>
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center flex-shrink-0">
+                      <Factory className="h-6 w-6 text-purple-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900 text-lg">
+                        Production Record
+                      </h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-gray-500">
+                          {formatDateOnly(group.date)}
+                        </span>
+                        <span className="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full font-medium">
+                          {group.records.length} entry{group.records.length !== 1 ? 's' : ''}
+                        </span>
                       </div>
-                    </th>
-                  ))}
-                  <th className="table-cell px-3 sm:px-4 py-3 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody className="table-body">
-                {productionHistory.slice(0, 10).map((record) => (
-                  <tr key={record._id} className="table-row hover:bg-gray-50">
-                    <td className="table-cell px-3 sm:px-4 py-3 text-sm whitespace-nowrap">
-                      {record.date ? new Date(record.date).toLocaleDateString('en-GB') : new Date(record.createdAt).toLocaleDateString('en-GB')}
-                    </td>
-                    {flavors.map((f) => (
-                      <td key={f.key} className="table-cell px-2 sm:px-4 py-3 text-center text-sm">
-                        {record.stock[f.key]?.toLocaleString() || ''}
-                      </td>
-                    ))}
-                    <td className="table-cell px-3 sm:px-4 py-3 text-right font-medium">
-                      {record.totalProduced?.toLocaleString() || Object.values(record.stock).reduce((a, b) => a + b, 0).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                  {/* Right: Total & Expand */}
+                  <div className="flex items-center gap-4 sm:pl-4 sm:border-l border-gray-200">
+                    <div className="text-right">
+                      <p className="text-3xl font-bold text-purple-600">
+                        {group.totalQuantity.toLocaleString()}
+                      </p>
+                      <p className="text-xs text-gray-500 font-medium">total bottles</p>
+                    </div>
+                    <button
+                      onClick={() => toggleExpand(group.date)}
+                      className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-xl transition-colors"
+                    >
+                      {expandedItems[group.date] ? (
+                        <ChevronUp className="h-5 w-5 text-gray-500" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-gray-500" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Expanded Details */}
+                {expandedItems[group.date] && (
+                  <div className="mt-2 pt-2 border-t border-gray-100">
+                    {/* Total by Flavor */}
+                    <h5 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary-500"></div>
+                      Total by Flavor
+                    </h5>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
+                      {flavors.map((f) => {
+                        const qty = group.flavorTotals[f.key] || 0;
+                        if (qty === 0) return null;
+                        return (
+                          <div key={f.key} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-2 text-center border border-gray-100">
+                            <div className={`w-3 h-3 rounded-full ${f.color} mx-auto mb-1 shadow-sm`}></div>
+                            <p className="text-xs font-medium text-gray-600">{f.label}</p>
+                            <p className="text-base font-bold text-gray-900">{qty.toLocaleString()}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Individual Production Details */}
+                    <div className="border-t border-gray-200 pt-3">
+                      <h5 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                        Individual Production Details ({group.records.length} entries)
+                      </h5>
+                      <div className="space-y-2">
+                        {group.records.map((record, rIndex) => (
+                          <div key={record._id} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-medium text-gray-500">
+                                Entry #{rIndex + 1} • {formatDate(record.createdAt)}
+                              </span>
+                              <span className="text-sm font-bold text-purple-600">
+                                {(record.totalProduced || Object.values(record.stock).reduce((a, b) => a + b, 0)).toLocaleString()} bottles
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {flavors.map(f => {
+                                const qty = record.stock[f.key] || 0;
+                                if (qty === 0) return null;
+                                return (
+                                  <span key={f.key} className="inline-flex items-center gap-1 text-xs bg-white px-2 py-1 rounded border border-gray-200">
+                                    <span className={`w-2 h-2 rounded-full ${f.color}`}></span>
+                                    <span>{f.label}:</span>
+                                    <span className="font-bold">{qty}</span>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                            {record.notes && (
+                              <p className="text-xs text-gray-500 mt-2 italic">
+                                Note: {record.notes}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>

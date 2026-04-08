@@ -51,13 +51,18 @@ const DistributorForm = ({ distributor, onClose, onSubmit }) => {
     try {
       if (distributor) {
         // Update existing distributor
-        await distributorAPI.update(distributor._id, {
+        const updateData = {
           name: formData.distributorName,
           email: formData.email,
           phone: formData.phone,
           address: formData.address,
           status: formData.status,
-        });
+        };
+        // Only include password if provided
+        if (formData.password && formData.password.trim()) {
+          updateData.password = formData.password;
+        }
+        await distributorAPI.update(distributor._id, updateData);
       } else {
         // Create new distributor
         await authAPI.registerDistributor({
@@ -128,6 +133,21 @@ const DistributorForm = ({ distributor, onClose, onSubmit }) => {
                 />
               </div>
             </>
+          )}
+
+          {distributor && (
+            <div className="form-group">
+              <label className="form-label">Password (leave blank to keep unchanged)</label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="input"
+                placeholder="Enter new password to change"
+              />
+              <p className="text-xs text-gray-500 mt-1">Only enter if you want to change the password</p>
+            </div>
           )}
 
           <div className="form-group">

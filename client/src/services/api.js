@@ -43,6 +43,7 @@ export const authAPI = {
 export const franchiseAPI = {
   getAll: () => api.get('/franchises'),
   getById: (id) => api.get(`/franchises/${id}`),
+  getDetails: (id) => api.get(`/franchises/${id}/details`),
   update: (id, data) => api.put(`/franchises/${id}`, data),
   delete: (id) => api.delete(`/franchises/${id}`),
   getAnalytics: () => api.get('/franchises/analytics'),

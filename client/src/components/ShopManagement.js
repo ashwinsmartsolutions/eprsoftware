@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { shopAPI } from '../services/api';
-import { Plus, Edit, Trash2, X, MapPin, Phone, Store, ShoppingCart, TrendingUp } from 'lucide-react';
+import { Plus, Edit, Trash2, X, MapPin, Phone, Store, Recycle, TrendingUp } from 'lucide-react';
 
 const ShopForm = ({ shop, areas, onClose, onSubmit, onAddArea, viewMode }) => {
   const [formData, setFormData] = useState({
@@ -493,7 +493,7 @@ const ShopManagement = () => {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate('/franchise/update-sales', { state: { shopId: shop._id } });
+                    navigate(`/franchise/update-sales?shopId=${shop._id}`);
                   }}
                   className="flex-1 btn btn-primary btn-sm"
                 >
@@ -503,12 +503,12 @@ const ShopManagement = () => {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    alert('Orders feature coming soon!');
+                    navigate(`/franchise/return-bottles?shopId=${shop._id}`);
                   }}
                   className="flex-1 btn btn-success btn-sm"
                 >
-                  <ShoppingCart className="h-4 w-4 mr-1" />
-                  Orders
+                  <Recycle className="h-4 w-4 mr-1" />
+                  Return
                 </button>
               </div>
             )}

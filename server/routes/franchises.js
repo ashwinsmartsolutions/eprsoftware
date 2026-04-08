@@ -4,6 +4,7 @@ const { franchiseUpdateRules, mongoIdParamRules } = require('../middleware/valid
 const {
   getFranchises,
   getFranchise,
+  getFranchiseDetails,
   updateFranchise,
   deleteFranchise,
   getFranchiseAnalytics
@@ -19,6 +20,9 @@ router.get('/analytics', auth, ownerAuth, getFranchiseAnalytics);
 
 // Get single franchise (Owner or own franchise)
 router.get('/:id', auth, mongoIdParamRules('id'), getFranchise);
+
+// Get franchise details with shops, sales, returns (Owner only)
+router.get('/:id/details', auth, ownerAuth, mongoIdParamRules('id'), getFranchiseDetails);
 
 // Update franchise (Owner only)
 router.put('/:id', auth, ownerAuth, mongoIdParamRules('id'), franchiseUpdateRules, updateFranchise);

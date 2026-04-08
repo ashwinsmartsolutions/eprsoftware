@@ -11,7 +11,6 @@ import {
   ChevronRight,
   Home,
   BarChart3,
-  Settings,
   Menu,
   X,
   Factory
@@ -19,8 +18,8 @@ import {
 import { transactionAPI } from '../services/api';
 import FranchiseManagement from '../components/FranchiseManagement';
 import StockAllocation from '../components/StockAllocation';
-import FranchiseAnalytics from '../components/FranchiseAnalytics';
 import OwnerProduction from '../components/OwnerProduction';
+import FranchiseDetails from '../components/FranchiseDetails';
 
 // Coming Soon component
 const ComingSoon = () => (
@@ -290,6 +289,7 @@ const OwnerPanel = () => {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/production" element={<OwnerProduction />} />
             <Route path="/franchises" element={<FranchiseManagement />} />
+            <Route path="/franchises/:id" element={<FranchiseDetails />} />
             <Route path="/stock-allocation" element={<StockAllocation />} />
             <Route path="/analytics" element={<ComingSoon />} />
           </Routes>

@@ -67,7 +67,7 @@ const getDistributor = async (req, res) => {
 // @access  Private (Producer only)
 const updateDistributor = async (req, res) => {
   try {
-    const { name, email, phone, address, status } = req.body;
+    const { name, email, phone, address, status, password } = req.body;
     
     let distributor = await Distributor.findById(req.params.id);
     
@@ -84,11 +84,31 @@ const updateDistributor = async (req, res) => {
 
     await distributor.save();
 
-    // Also update user email if changed
-    if (email) {
+    // Update user fields
+    const userUpdate = {};
+    if (email) userUpdate.email = email;
+    
+    // Handle password update separately to trigger pre-save hook
+    if (password && password.trim()) {
+      console.log('Updating password for distributor:', distributor._id);
+      const user = await User.findOne({ distributorId: distributor._id });
+      console.log('User found:', !!user);
+      if (user) {
+        console.log('Setting new password for user:', user.email);
+        user.password = password;
+        console.log('About to save user with new password...');
+        await user.save();
+        console.log('Password updated successfully for user:', user.email);
+      } else {
+        console.log('No user found for distributor:', distributor._id);
+      }
+    }
+    
+    // Update other user fields if needed
+    if (Object.keys(userUpdate).length > 0) {
       await User.findOneAndUpdate(
         { distributorId: distributor._id },
-        { email }
+        userUpdate
       );
     }
 

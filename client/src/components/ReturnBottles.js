@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { shopAPI, transactionAPI } from '../services/api';
 import { Store, Recycle, MapPin, History, Filter, ChevronDown, ChevronUp } from 'lucide-react';
 
 const ReturnBottles = () => {
+  const [searchParams] = useSearchParams();
+  const navigateShopId = searchParams.get('shopId');
   // Shared state
   const [shops, setShops] = useState([]);
   const [areas, setAreas] = useState([]);
@@ -33,7 +36,22 @@ const ReturnBottles = () => {
 
   useEffect(() => {
     fetchShops();
+    if (navigateShopId) {
+      setSelectedShop(navigateShopId);
+    }
   }, []);
+
+  useEffect(() => {
+    // When shops are loaded and navigateShopId is set, pre-select the area and shop
+    if (navigateShopId && shops.length > 0) {
+      const shop = shops.find(s => s._id === navigateShopId);
+      if (shop && shop.area) {
+        setSelectedArea(shop.area);
+        // Ensure the shop is selected after the filter is applied
+        setTimeout(() => setSelectedShop(navigateShopId), 0);
+      }
+    }
+  }, [shops, navigateShopId]);
 
   useEffect(() => {
     // Extract unique areas from shops
@@ -48,11 +66,11 @@ const ReturnBottles = () => {
       filtered = shops.filter(shop => shop.area === selectedArea);
     }
     setFilteredShops(filtered.sort((a, b) => a.name.localeCompare(b.name)));
-    // Clear selected shop if it's not in the filtered list
-    if (selectedShop && !filtered.find(s => s._id === selectedShop)) {
+    // Only clear selected shop if it was NOT from URL navigation
+    if (selectedShop && !filtered.find(s => s._id === selectedShop) && !navigateShopId) {
       setSelectedShop('');
     }
-  }, [selectedArea, shops]);
+  }, [selectedArea, shops, navigateShopId]);
 
   // Fetch return history when filters change
   useEffect(() => {
@@ -278,7 +296,53 @@ const ReturnBottles = () => {
   };
 
   const toggleExpand = (id) => {
-    setExpandedItems(prev => ({ ...prev, [id]: !prev[id] }));
+    setExpandedItems(prev => {
+      // If clicking the same item, close it. If clicking different item, open only that one.
+      const isCurrentlyExpanded = prev[id];
+      if (isCurrentlyExpanded) {
+        return {}; // Close current
+      }
+      return { [id]: true }; // Open only the new one, close others
+    });
+  };
+
+  // Group returns history by shop and date
+  const groupReturnsByShopAndDate = (transactions) => {
+    const grouped = {};
+    
+    transactions.forEach(transaction => {
+      const shopId = transaction.shopId?._id || transaction.shopId;
+      const shopName = transaction.shopId?.name || transaction.shopId?.location || 'Unknown Shop';
+      const shopArea = transaction.shopId?.area || transaction.area;
+      const date = new Date(transaction.createdAt).toDateString();
+      const key = `${shopId}_${date}`;
+      
+      if (!grouped[key]) {
+        grouped[key] = {
+          shopId,
+          shopName,
+          shopArea,
+          date: transaction.createdAt,
+          totalQuantity: 0,
+          transactions: [],
+          flavorTotals: {}
+        };
+      }
+      
+      grouped[key].totalQuantity += transaction.totalQuantity || 0;
+      grouped[key].transactions.push(transaction);
+      
+      // Aggregate flavors
+      transaction.items?.forEach(item => {
+        const flavor = item.flavor.toLowerCase();
+        if (!grouped[key].flavorTotals[flavor]) {
+          grouped[key].flavorTotals[flavor] = 0;
+        }
+        grouped[key].flavorTotals[flavor] += item.quantity;
+      });
+    });
+    
+    return Object.values(grouped);
   };
 
   const formatDate = (dateString) => {
@@ -288,6 +352,14 @@ const ReturnBottles = () => {
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
+    });
+  };
+
+  const formatDateOnly = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
     });
   };
 
@@ -577,9 +649,12 @@ const ReturnBottles = () => {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
-            <span className="text-green-600 block text-xs font-medium">Total Returns</span>
+            <span className="text-green-600 block text-xs font-medium">Grouped Returns</span>
             <span className="font-bold text-green-900 text-2xl">
-              {returnHistory.length}
+              {groupReturnsByShopAndDate(returnHistory).length}
+            </span>
+            <span className="text-xs text-green-500">
+              ({returnHistory.length} individual entries)
             </span>
           </div>
           <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-4">
@@ -680,7 +755,7 @@ const ReturnBottles = () => {
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-500"></div>
             <p className="text-sm font-medium text-gray-700">
-              {historyLoading ? 'Loading...' : selectedDate ? `${returnHistory.length} records for ${new Date(selectedDate).toLocaleDateString('en-IN')}` : `Showing ${returnHistory.length} return record${returnHistory.length !== 1 ? 's' : ''}`}
+              {historyLoading ? 'Loading...' : selectedDate ? `${groupReturnsByShopAndDate(returnHistory).length} grouped records for ${new Date(selectedDate).toLocaleDateString('en-IN')}` : `Showing ${groupReturnsByShopAndDate(returnHistory).length} grouped return record${groupReturnsByShopAndDate(returnHistory).length !== 1 ? 's' : ''}`}
             </p>
           </div>
         </div>
@@ -704,9 +779,9 @@ const ReturnBottles = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {returnHistory.map((transaction, index) => (
+              {groupReturnsByShopAndDate(returnHistory).map((group, index) => (
                 <div
-                  key={transaction._id}
+                  key={`${group.shopId}_${group.date}`}
                   className="card hover:shadow-lg transition-all duration-200 border-l-4 border-l-green-500 py-2 px-3"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -721,17 +796,20 @@ const ReturnBottles = () => {
                       </div>
                       <div>
                         <h4 className="font-semibold text-gray-900 text-lg">
-                          {transaction.shopId?.name || transaction.shopId?.location || 'Unknown Shop'}
+                          {group.shopName}
                         </h4>
                         <div className="flex items-center gap-3 mt-1">
-                          {(transaction.shopId?.area || transaction.area) && (
+                          {group.shopArea && (
                             <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
                               <MapPin className="h-3 w-3" />
-                              {transaction.shopId?.area || transaction.area}
+                              {group.shopArea}
                             </span>
                           )}
                           <span className="text-xs text-gray-400">
-                            {formatDate(transaction.createdAt)}
+                            {formatDateOnly(group.date)}
+                          </span>
+                          <span className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full font-medium">
+                            {group.transactions.length} return{group.transactions.length !== 1 ? 's' : ''}
                           </span>
                         </div>
                       </div>
@@ -741,15 +819,15 @@ const ReturnBottles = () => {
                     <div className="flex items-center gap-4 sm:pl-4 sm:border-l border-gray-200">
                       <div className="text-right">
                         <p className="text-3xl font-bold text-green-600">
-                          {transaction.totalQuantity}
+                          {group.totalQuantity}
                         </p>
-                        <p className="text-xs text-gray-500 font-medium">bottles returned</p>
+                        <p className="text-xs text-gray-500 font-medium">total bottles</p>
                       </div>
                       <button
-                        onClick={() => toggleExpand(transaction._id)}
+                        onClick={() => toggleExpand(`${group.shopId}_${group.date}`)}
                         className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-xl transition-colors"
                       >
-                        {expandedItems[transaction._id] ? (
+                        {expandedItems[`${group.shopId}_${group.date}`] ? (
                           <ChevronUp className="h-5 w-5 text-gray-500" />
                         ) : (
                           <ChevronDown className="h-5 w-5 text-gray-500" />
@@ -758,32 +836,63 @@ const ReturnBottles = () => {
                     </div>
                   </div>
                   
-                  {/* Expanded Details */}
-                  {expandedItems[transaction._id] && (
+                  {/* Expanded Details - Flavor Totals */}
+                  {expandedItems[`${group.shopId}_${group.date}`] && (
                     <div className="mt-2 pt-2 border-t border-gray-100">
+                      {/* Total by Flavor */}
                       <h5 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-primary-500"></div>
-                        Details by Flavor
+                        Total by Flavor
                       </h5>
-                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                        {transaction.items?.map((item, idx) => {
-                          const flavorInfo = flavors.find(f => f.key === item.flavor.toLowerCase());
+                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
+                        {Object.entries(group.flavorTotals).map(([flavor, quantity], idx) => {
+                          const flavorInfo = flavors.find(f => f.key === flavor.toLowerCase());
+                          if (quantity === 0) return null;
                           return (
                             <div key={idx} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-2 text-center border border-gray-100">
                               <div className={`w-3 h-3 rounded-full ${flavorInfo?.color || 'bg-gray-400'} mx-auto mb-1 shadow-sm`}></div>
-                              <p className="text-xs font-medium text-gray-600 capitalize">{item.flavor}</p>
-                              <p className="text-base font-bold text-gray-900">{item.quantity}</p>
+                              <p className="text-xs font-medium text-gray-600 capitalize">{flavor}</p>
+                              <p className="text-base font-bold text-gray-900">{quantity}</p>
                             </div>
                           );
                         })}
                       </div>
-                      {transaction.description && (
-                        <div className="mt-2 p-2 bg-blue-50 rounded-lg border border-blue-100">
-                          <p className="text-xs text-blue-700">
-                            <span className="font-semibold">Note:</span> {transaction.description}
-                          </p>
+                      
+                      {/* Individual Returns Details Dropdown */}
+                      <div className="border-t border-gray-200 pt-3">
+                        <h5 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                          Individual Return Details ({group.transactions.length} entries)
+                        </h5>
+                        <div className="space-y-2">
+                          {group.transactions.map((transaction, tIndex) => (
+                            <div key={transaction._id} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-medium text-gray-500">
+                                  Entry #{tIndex + 1} • {formatDate(transaction.createdAt)}
+                                </span>
+                                <span className="text-sm font-bold text-green-600">
+                                  {transaction.totalQuantity} bottles
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {transaction.items?.map((item, idx) => (
+                                  <span key={idx} className="inline-flex items-center gap-1 text-xs bg-white px-2 py-1 rounded border border-gray-200">
+                                    <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+                                    <span className="capitalize">{item.flavor}:</span>
+                                    <span className="font-bold">{item.quantity}</span>
+                                  </span>
+                                ))}
+                              </div>
+                              {transaction.description && (
+                                <p className="text-xs text-gray-500 mt-2 italic">
+                                  Note: {transaction.description}
+                                </p>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      )}
+                      </div>
                     </div>
                   )}
                 </div>

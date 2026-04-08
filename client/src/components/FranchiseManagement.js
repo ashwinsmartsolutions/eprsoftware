@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { franchiseAPI, authAPI } from '../services/api';
-import { Plus, Edit, Trash2, X, Circle } from 'lucide-react';
+import { Plus, Edit, Trash2, RefreshCw, Circle, Eye, X } from 'lucide-react';
 
 const FranchiseForm = ({ franchise, onClose, onSubmit }) => {
   const [formData, setFormData] = useState({
@@ -321,9 +322,12 @@ const FranchiseManagement = () => {
               {franchises.map((franchise) => (
                 <tr key={franchise._id}>
                   <td>
-                    <div className="text-sm font-medium text-gray-900">
+                    <Link 
+                      to={`/owner/franchises/${franchise._id}`}
+                      className="text-sm font-medium text-primary-600 hover:text-primary-700 hover:underline"
+                    >
                       {franchise.name}
-                    </div>
+                    </Link>
                   </td>
                   <td>
                     <div className="text-sm text-gray-900">{franchise.email}</div>
@@ -369,6 +373,13 @@ const FranchiseManagement = () => {
                   </td>
                   <td>
                     <div className="table-actions justify-end">
+                      <Link
+                        to={`/owner/franchises/${franchise._id}`}
+                        className="action-btn-primary"
+                        aria-label="View franchise details"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Link>
                       <button
                         onClick={() => handleEdit(franchise)}
                         className="action-btn-primary"
