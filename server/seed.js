@@ -34,7 +34,7 @@ const seedData = async () => {
     const demoFranchise = new Franchise({
       name: 'Demo Franchise',
       email: 'dist@epr.com',
-      phone: '+1234567890',
+      phone: '1234567890',
       address: '123 Main St, City, State'
     });
     await demoFranchise.save();
