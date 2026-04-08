@@ -121,18 +121,24 @@ const DistributorOverview = ({ overview }) => {
                   Sales Efficiency
                 </span>
                 <span className="text-xs sm:text-sm font-bold text-gray-900">
-                  {overview.totalStock > 0 
-                    ? Math.round((overview.totalSold / (overview.totalSold + overview.totalStock)) * 100) 
-                    : 0}%
+                  {(() => {
+                    const totalInventory = overview.totalSold + overview.totalStock;
+                    return totalInventory > 0 
+                      ? Math.round((overview.totalSold / totalInventory) * 100) 
+                      : 0;
+                  })()}%
                 </span>
               </div>
               <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
                 <div 
                   className="bg-gradient-to-r from-emerald-500 to-emerald-400 h-full rounded-full transition-all duration-700 ease-out" 
                   style={{ 
-                    width: `${overview.totalStock > 0 
-                      ? Math.round((overview.totalSold / (overview.totalSold + overview.totalStock)) * 100) 
-                      : 0}%` 
+                    width: `${(() => {
+                      const totalInventory = overview.totalSold + overview.totalStock;
+                      return totalInventory > 0 
+                        ? Math.round((overview.totalSold / totalInventory) * 100) 
+                        : 0;
+                    })()}%` 
                   }}
                 ></div>
               </div>

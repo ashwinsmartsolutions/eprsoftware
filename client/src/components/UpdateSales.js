@@ -52,7 +52,7 @@ const UpdateSales = () => {
     if (selectedArea) {
       filtered = shops.filter(shop => shop.area === selectedArea);
     }
-    setFilteredShops(filtered);
+    setFilteredShops(filtered.sort((a, b) => a.name.localeCompare(b.name)));
     if (selectedShop && !filtered.find(s => s._id === selectedShop)) {
       setSelectedShop('');
     }

@@ -47,7 +47,7 @@ const ReturnBottles = () => {
     if (selectedArea) {
       filtered = shops.filter(shop => shop.area === selectedArea);
     }
-    setFilteredShops(filtered);
+    setFilteredShops(filtered.sort((a, b) => a.name.localeCompare(b.name)));
     // Clear selected shop if it's not in the filtered list
     if (selectedShop && !filtered.find(s => s._id === selectedShop)) {
       setSelectedShop('');

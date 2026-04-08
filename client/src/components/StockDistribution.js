@@ -31,7 +31,7 @@ const StockDistribution = () => {
     try {
       const response = await shopAPI.getAll();
       if (response.data.success) {
-        setShops(response.data.shops);
+        setShops(response.data.shops.sort((a, b) => a.name.localeCompare(b.name)));
       }
     } catch (error) {
       console.error('Error fetching shops:', error);

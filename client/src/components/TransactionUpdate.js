@@ -26,7 +26,7 @@ const TransactionUpdate = () => {
     try {
       const response = await shopAPI.getAll();
       if (response.data.success) {
-        setShops(response.data.shops.filter(shop => shop.status === 'active'));
+        setShops(response.data.shops.filter(shop => shop.status === 'active').sort((a, b) => a.name.localeCompare(b.name)));
       }
     } catch (error) {
       console.error('Error fetching shops:', error);
