@@ -13,7 +13,10 @@ const app = express();
 app.set('trust proxy', 1);
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json());
 
 // Rate limiting - Increased limits to prevent 429 errors
@@ -29,6 +32,11 @@ const limiter = rateLimit({
 
 // Apply rate limiting to all requests
 app.use(limiter);
+
+// Health check endpoint for Render
+app.get('/api/auth/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // Auth routes - no additional rate limiting to prevent login failures
 app.use('/api/auth', require('./routes/auth'));

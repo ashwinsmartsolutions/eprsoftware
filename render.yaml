@@ -1,0 +1,35 @@
+services:
+  # Backend API Service
+  - type: web
+    name: epr-backend
+    env: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false  # Set this in Render dashboard
+      - key: JWT_SECRET
+        sync: false  # Set this in Render dashboard
+      - key: JWT_EXPIRE
+        value: 30d
+      - key: FRONTEND_URL
+        value: https://epr-frontend.onrender.com  # Will update after frontend deploy
+    healthCheckPath: /api/auth/health
+    plan: free
+
+  # Frontend Static Site
+  - type: static
+    name: epr-frontend
+    env: static
+    rootDir: client
+    buildCommand: npm install && npm run build
+    publishDir: build
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://epr-backend.onrender.com/api  # Will update after backend deploy
+    plan: free
