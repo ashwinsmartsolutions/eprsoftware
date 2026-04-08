@@ -1,0 +1,552 @@
+const Transaction = require('../models/Transaction');
+const Franchise = require('../models/Franchise');
+const Shop = require('../models/Shop');
+
+// @desc    Record sales from shop
+// @route   POST /api/transactions/sales
+// @access  Private (Franchise only)
+const recordSales = async (req, res) => {
+  try {
+    const { shopId, items } = req.body;
+    const franchiseId = req.user.franchiseId;
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    console.log('Record Sales - Request Details:', {
+      shopId,
+      userId,
+      userRole,
+      franchiseId,
+      itemCount: items?.length
+    });
+
+    const shop = await Shop.findById(shopId);
+    
+    if (!shop) {
+      console.log('Record Sales - Shop not found:', shopId);
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    console.log('Record Sales - Shop found:', {
+      shopId: shop._id,
+      shopName: shop.name,
+      shopFranchiseId: shop.franchiseId,
+      userFranchiseId: franchiseId
+    });
+
+    if (!franchiseId) {
+      console.log('Record Sales - User has no franchiseId');
+      return res.status(403).json({ message: 'Access denied. User has no franchise assigned.' });
+    }
+
+    if (shop.franchiseId.toString() !== franchiseId.toString()) {
+      console.error('Record Sales - Franchise ID mismatch:', {
+        userFranchiseId: franchiseId,
+        shopFranchiseId: shop.franchiseId.toString(),
+        shopId: shop._id,
+        shopName: shop.name,
+        userId: userId,
+        userRole: userRole
+      });
+      return res.status(403).json({ 
+        message: `Access denied. Shop belongs to different franchise. User Franchise: ${franchiseId.toString()}, Shop Franchise: ${shop.franchiseId.toString()}` 
+      });
+    }
+
+    const franchise = await Franchise.findById(franchiseId);
+    
+    if (!franchise) {
+      console.log('Record Sales - Franchise not found:', franchiseId);
+      return res.status(404).json({ message: 'Franchise not found' });
+    }
+
+    // Check if shop has enough stock and calculate total quantity
+    let totalQuantity = 0;
+    for (const item of items) {
+      const flavor = item.flavor.toLowerCase();
+      if (!shop.stock[flavor] || shop.stock[flavor] < item.quantity) {
+        return res.status(400).json({ 
+          message: `Insufficient stock for ${item.flavor}. Available: ${shop.stock[flavor] || 0}, Requested: ${item.quantity}` 
+        });
+      }
+      totalQuantity += item.quantity;
+    }
+
+    // Build atomic update operations for stock deduction and sales increment
+    const shopUpdate = { $inc: { totalSold: totalQuantity } };
+    const franchiseUpdate = { $inc: { totalSold: totalQuantity } };
+    
+    for (const item of items) {
+      const flavor = item.flavor.toLowerCase();
+      shopUpdate.$inc[`stock.${flavor}`] = -item.quantity;
+    }
+
+    // Atomically update shop stock and sales
+    const updatedShop = await Shop.findOneAndUpdate(
+      { 
+        _id: shopId,
+        franchiseId: franchiseId
+      },
+      shopUpdate,
+      { new: true }
+    );
+
+    if (!updatedShop) {
+      return res.status(400).json({ 
+        message: 'Failed to update shop stock. Shop may not exist or belong to another franchise.' 
+      });
+    }
+
+    // Atomically update franchise totals
+    await Franchise.findByIdAndUpdate(
+      franchiseId,
+      franchiseUpdate
+    );
+
+    // Create transaction record
+    const transaction = new Transaction({
+      type: 'sale',
+      franchiseId,
+      shopId,
+      items,
+      totalQuantity,
+      description: `Sales recorded for shop: ${shop.name}`
+    });
+
+    await transaction.save();
+
+    res.json({
+      success: true,
+      message: 'Sales recorded successfully',
+      shop: updatedShop,
+      franchise
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Record empty bottle returns from shop
+// @route   POST /api/transactions/empty-bottles
+// @access  Private (Franchise only)
+const recordEmptyBottles = async (req, res) => {
+  try {
+    const { shopId, items } = req.body;
+    const franchiseId = req.user.franchiseId;
+
+    const shop = await Shop.findById(shopId);
+    const franchise = await Franchise.findById(franchiseId);
+
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    if (shop.franchiseId.toString() !== franchiseId.toString()) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Validate: cannot return more than sold for each flavor
+    // Get all sales transactions for this shop
+    const salesTransactions = await Transaction.find({
+      type: 'sale',
+      shopId: shopId
+    });
+
+    // Calculate total sold per flavor
+    const flavorSales = {};
+    salesTransactions.forEach(transaction => {
+      transaction.items.forEach(item => {
+        const flavor = item.flavor.toLowerCase();
+        flavorSales[flavor] = (flavorSales[flavor] || 0) + item.quantity;
+      });
+    });
+
+    // Get all previous empty bottle returns for this shop
+    const returnsTransactions = await Transaction.find({
+      type: 'empty_bottle_return',
+      shopId: shopId
+    });
+
+    // Calculate already returned per flavor
+    const flavorReturned = {};
+    returnsTransactions.forEach(transaction => {
+      transaction.items.forEach(item => {
+        const flavor = item.flavor.toLowerCase();
+        flavorReturned[flavor] = (flavorReturned[flavor] || 0) + item.quantity;
+      });
+    });
+
+    // Validate each item
+    for (const item of items) {
+      const flavor = item.flavor.toLowerCase();
+      const sold = flavorSales[flavor] || 0;
+      const alreadyReturned = flavorReturned[flavor] || 0;
+      const available = Math.max(0, sold - alreadyReturned);
+      
+      if (item.quantity > available) {
+        return res.status(400).json({
+          message: `Cannot return more ${item.flavor} bottles than sold. Sold: ${sold}, Already Returned: ${alreadyReturned}, Available: ${available}, Requested: ${item.quantity}`
+        });
+      }
+    }
+
+    // Calculate total empty bottles returned
+    let totalQuantity = 0;
+    for (const item of items) {
+      totalQuantity += item.quantity;
+    }
+
+    // Atomically update shop empty bottles returned
+    const updatedShop = await Shop.findByIdAndUpdate(
+      shopId,
+      { $inc: { emptyBottlesReturned: totalQuantity } },
+      { new: true }
+    );
+
+    if (!updatedShop) {
+      return res.status(400).json({ message: 'Failed to update shop empty bottles count' });
+    }
+
+    // Atomically update franchise empty bottles collected
+    await Franchise.findByIdAndUpdate(
+      franchiseId,
+      { $inc: { totalEmptyBottles: totalQuantity } }
+    );
+
+    // Create transaction record
+    const transaction = new Transaction({
+      type: 'empty_bottle_return',
+      franchiseId,
+      shopId,
+      items,
+      totalQuantity,
+      description: `Empty bottles returned from shop: ${shop.name}`
+    });
+
+    await transaction.save();
+
+    res.json({
+      success: true,
+      message: 'Empty bottles recorded successfully',
+      shop: updatedShop,
+      franchise
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get transactions for franchise
+// @route   GET /api/transactions
+// @access  Private
+const getTransactions = async (req, res) => {
+  try {
+    let franchiseId;
+    const { page = 1, limit = 10, type, shopId } = req.query;
+
+    if (req.user.role === 'owner') {
+      franchiseId = req.query.franchiseId;
+    } else {
+      franchiseId = req.user.franchiseId;
+    }
+
+    const query = { franchiseId };
+    if (type) {
+      query.type = type;
+    }
+    
+    // Filter by shopId if provided
+    if (shopId) {
+      query.shopId = shopId;
+    }
+
+    const transactions = await Transaction.find(query)
+      .populate('shopId', 'name location')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Transaction.countDocuments(query);
+
+    res.json({
+      success: true,
+      transactions,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get owner overview statistics
+// @route   GET /api/transactions/overview
+// @access  Private (Owner only)
+const getOwnerOverview = async (req, res) => {
+  try {
+    const franchises = await Franchise.find();
+    
+    const totalFranchises = franchises.length;
+    const totalStockIssued = franchises.reduce((sum, fr) => 
+      sum + Object.values(fr.stock).reduce((a, b) => a + b, 0), 0
+    );
+    const totalSold = franchises.reduce((sum, fr) => sum + fr.totalSold, 0);
+    const totalEmptyBottles = franchises.reduce((sum, fr) => sum + fr.totalEmptyBottles, 0);
+
+    res.json({
+      success: true,
+      overview: {
+        totalFranchises,
+        totalStockIssued,
+        totalSold,
+        totalEmptyBottles
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get franchise overview statistics
+// @route   GET /api/transactions/franchise-overview
+// @access  Private (Franchise only)
+const getFranchiseOverview = async (req, res) => {
+  try {
+    const franchiseId = req.user.franchiseId;
+    const franchise = await Franchise.findById(franchiseId);
+    const shops = await Shop.find({ franchiseId });
+
+    const totalStock = Object.values(franchise.stock).reduce((a, b) => a + b, 0);
+    const totalShops = shops.length;
+    const totalSold = franchise.totalSold;
+    const totalEmptyBottles = franchise.totalEmptyBottles;
+
+    res.json({
+      success: true,
+      overview: {
+        totalStock,
+        totalShops,
+        totalSold,
+        totalEmptyBottles,
+        stock: franchise.stock
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get shop sales statistics (per flavor)
+// @route   GET /api/transactions/shop-sales/:shopId
+// @access  Private
+const getShopSales = async (req, res) => {
+  try {
+    const { shopId } = req.params;
+    let franchiseId;
+
+    if (req.user.role === 'owner') {
+      franchiseId = req.query.franchiseId;
+    } else {
+      franchiseId = req.user.franchiseId;
+    }
+
+    // Verify shop belongs to franchise
+    const shop = await Shop.findById(shopId);
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    if (shop.franchiseId.toString() !== franchiseId.toString()) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Get all sales transactions for this shop
+    const salesTransactions = await Transaction.find({
+      type: 'sale',
+      shopId: shopId
+    });
+
+    // Calculate per-flavor sales
+    const flavorSales = {};
+    const flavors = ['orange', 'blueberry', 'jira', 'lemon', 'mint', 'guava'];
+    
+    flavors.forEach(flavor => {
+      flavorSales[flavor] = 0;
+    });
+
+    salesTransactions.forEach(transaction => {
+      transaction.items.forEach(item => {
+        const flavor = item.flavor.toLowerCase();
+        if (flavorSales.hasOwnProperty(flavor)) {
+          flavorSales[flavor] += item.quantity;
+        }
+      });
+    });
+
+    res.json({
+      success: true,
+      shopId: shopId,
+      shopName: shop.name,
+      flavorSales,
+      totalSold: Object.values(flavorSales).reduce((a, b) => a + b, 0)
+    });
+  } catch (error) {
+    console.error('Get shop sales error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Update stock allocation transaction
+// @route   PUT /api/transactions/:id
+// @access  Private (Franchise only)
+const updateStockAllocation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { items } = req.body;
+    const franchiseId = req.user.franchiseId;
+
+    // Find the existing transaction
+    const transaction = await Transaction.findById(id);
+
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
+
+    // Verify it's a stock allocation transaction
+    if (transaction.type !== 'stock_allocation') {
+      return res.status(400).json({ message: 'Can only update stock allocation transactions' });
+    }
+
+    // Verify the transaction belongs to this franchise
+    if (transaction.franchiseId.toString() !== franchiseId.toString()) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const shopId = transaction.shopId;
+    const shop = await Shop.findById(shopId);
+    const franchise = await Franchise.findById(franchiseId);
+
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    // Calculate differences between old and new quantities
+    const oldItems = transaction.items || [];
+    const newItems = items || [];
+
+    const differences = {};
+    let totalDifference = 0;
+    let newTotalQuantity = 0;
+
+    // Get all flavor keys
+    const flavors = ['orange', 'blueberry', 'jira', 'lemon', 'mint', 'guava'];
+
+    flavors.forEach(flavor => {
+      const oldQty = oldItems.find(item => item.flavor.toLowerCase() === flavor)?.quantity || 0;
+      const newQty = newItems.find(item => item.flavor.toLowerCase() === flavor)?.quantity || 0;
+      const diff = newQty - oldQty;
+
+      if (diff !== 0) {
+        differences[flavor] = diff;
+      }
+      totalDifference += Math.abs(diff);
+      newTotalQuantity += newQty;
+    });
+
+    // If no changes, return early
+    if (Object.keys(differences).length === 0) {
+      return res.json({
+        success: true,
+        message: 'No changes made',
+        transaction
+      });
+    }
+
+    // Check if franchise has enough stock for increased allocations
+    for (const [flavor, diff] of Object.entries(differences)) {
+      if (diff > 0) {
+        // Trying to allocate more - check if franchise has enough
+        const availableFranchiseStock = franchise.stock[flavor] || 0;
+        if (availableFranchiseStock < diff) {
+          return res.status(400).json({
+            message: `Insufficient franchise stock for ${flavor}. Available: ${availableFranchiseStock}, Additional needed: ${diff}`
+          });
+        }
+      } else if (diff < 0) {
+        // Trying to reduce allocation - check if shop has enough to return
+        const shopStockAvailable = shop.stock[flavor] || 0;
+        const amountToReturn = Math.abs(diff);
+        if (shopStockAvailable < amountToReturn) {
+          return res.status(400).json({
+            message: `Shop doesn't have enough ${flavor} stock to reduce. Shop has: ${shopStockAvailable}, Trying to remove: ${amountToReturn}`
+          });
+        }
+      }
+    }
+
+    // Build update operations
+    const franchiseUpdate = { $inc: {} };
+    const shopUpdate = { $inc: {} };
+
+    Object.entries(differences).forEach(([flavor, diff]) => {
+      // If diff > 0, franchise gives more (subtract), shop receives more (add)
+      // If diff < 0, franchise gets back (add), shop gives back (subtract)
+      franchiseUpdate.$inc[`stock.${flavor}`] = -diff;
+      shopUpdate.$inc[`stock.${flavor}`] = diff;
+    });
+
+    // Update franchise stock
+    const updatedFranchise = await Franchise.findByIdAndUpdate(
+      franchiseId,
+      franchiseUpdate,
+      { new: true }
+    );
+
+    if (!updatedFranchise) {
+      return res.status(400).json({ message: 'Failed to update franchise stock' });
+    }
+
+    // Update shop stock
+    const updatedShop = await Shop.findByIdAndUpdate(
+      shopId,
+      shopUpdate,
+      { new: true }
+    );
+
+    if (!updatedShop) {
+      return res.status(400).json({ message: 'Failed to update shop stock' });
+    }
+
+    // Update the transaction
+    transaction.items = newItems;
+    transaction.totalQuantity = newTotalQuantity;
+    await transaction.save();
+
+    res.json({
+      success: true,
+      message: 'Stock allocation updated successfully',
+      transaction,
+      franchise: updatedFranchise,
+      shop: updatedShop
+    });
+  } catch (error) {
+    console.error('Update stock allocation error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = {
+  recordSales,
+  recordEmptyBottles,
+  getTransactions,
+  getOwnerOverview,
+  getFranchiseOverview,
+  getShopSales,
+  updateStockAllocation
+};

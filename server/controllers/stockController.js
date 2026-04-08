@@ -1,0 +1,286 @@
+const Franchise = require('../models/Franchise');
+const Shop = require('../models/Shop');
+const Transaction = require('../models/Transaction');
+const OwnerInventory = require('../models/ProducerInventory');
+
+// @desc    Allocate stock to franchise (Owner only)
+// @route   POST /api/stock/allocate-franchise
+// @access  Private (Owner only)
+const allocateStockToFranchise = async (req, res) => {
+  try {
+    const { franchiseId, stock } = req.body;
+
+    // Get owner inventory and check available stock
+    let ownerInventory = await OwnerInventory.findOne({ owner: req.user.id });
+    
+    if (!ownerInventory) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'No production inventory found. Please record production first.' 
+      });
+    }
+
+    // Check if owner has enough available stock for each flavor
+    for (const [flavor, quantity] of Object.entries(stock)) {
+      if (quantity > 0) {
+        const available = ownerInventory.available[flavor] || 0;
+        if (available < quantity) {
+          return res.status(400).json({ 
+            success: false,
+            message: `Insufficient stock for ${flavor}. Available: ${available}, Requested: ${quantity}` 
+          });
+        }
+      }
+    }
+
+    const franchise = await Franchise.findById(franchiseId);
+    if (!franchise) {
+      return res.status(404).json({ message: 'Franchise not found' });
+    }
+
+    // Build atomic update operations for franchise stock
+    const franchiseUpdate = { $inc: {} };
+    const ownerInventoryUpdate = { $inc: {} };
+    
+    Object.keys(stock).forEach(flavor => {
+      if (stock[flavor] > 0) {
+        franchiseUpdate.$inc[`stock.${flavor}`] = stock[flavor];
+        ownerInventoryUpdate.$inc[`totalAllocated.${flavor}`] = stock[flavor];
+      }
+    });
+
+    // Atomically update franchise stock
+    const updatedFranchise = await Franchise.findByIdAndUpdate(
+      franchiseId,
+      franchiseUpdate,
+      { new: true }
+    );
+
+    if (!updatedFranchise) {
+      return res.status(404).json({ message: 'Franchise not found or update failed' });
+    }
+
+    // Atomically update owner inventory
+    await OwnerInventory.findOneAndUpdate(
+      { owner: req.user.id },
+      ownerInventoryUpdate,
+      { new: true }
+    );
+
+    // Create transaction record
+    const items = Object.entries(stock)
+      .filter(([_, quantity]) => quantity > 0)
+      .map(([flavor, quantity]) => ({ flavor, quantity }));
+
+    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+
+    const transaction = new Transaction({
+      type: 'stock_allocation',
+      franchiseId,
+      items,
+      totalQuantity,
+      description: `Stock allocated to ${franchise.name}`
+    });
+
+    await transaction.save();
+
+    res.json({
+      success: true,
+      message: 'Stock allocated successfully',
+      franchise,
+      availableStock: ownerInventory.available
+    });
+  } catch (error) {
+    console.error('Stock allocation error:', error.message);
+    console.error(error.stack);
+    res.status(500).json({ message: 'Server error: ' + error.message });
+  }
+};
+
+// @desc    Allocate stock to shop (Franchise only)
+// @route   POST /api/stock/allocate-shop
+// @access  Private (Franchise only)
+const allocateStockToShop = async (req, res) => {
+  try {
+    const { shopId, stock } = req.body;
+    const franchiseId = req.user.franchiseId;
+
+    const franchise = await Franchise.findById(franchiseId);
+    const shop = await Shop.findById(shopId);
+
+    if (!franchise) {
+      return res.status(404).json({ message: 'Franchise not found' });
+    }
+
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    if (shop.franchiseId.toString() !== franchiseId.toString()) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Check if franchise has enough stock
+    for (const [flavor, quantity] of Object.entries(stock)) {
+      const flavorKey = flavor.toLowerCase();
+      if (quantity > 0 && franchise.stock[flavorKey] < quantity) {
+        return res.status(400).json({ 
+          message: `Insufficient stock for ${flavor}. Available: ${franchise.stock[flavorKey]}, Requested: ${quantity}` 
+        });
+      }
+    }
+
+    // Build atomic update operations
+    const franchiseUpdate = { $inc: {} };
+    const shopUpdate = { $inc: {} };
+    let totalQuantity = 0;
+
+    Object.keys(stock).forEach(flavor => {
+      const flavorKey = flavor.toLowerCase();
+      if (stock[flavor] > 0) {
+        franchiseUpdate.$inc[`stock.${flavorKey}`] = -stock[flavor];
+        shopUpdate.$inc[`stock.${flavorKey}`] = stock[flavor];
+        totalQuantity += stock[flavor];
+      }
+    });
+
+    // Atomically update franchise stock (deduct)
+    const updatedFranchise = await Franchise.findByIdAndUpdate(
+      franchiseId,
+      franchiseUpdate,
+      { new: true }
+    );
+
+    if (!updatedFranchise) {
+      return res.status(400).json({ 
+        message: 'Stock update failed. Insufficient stock or franchise not found.' 
+      });
+    }
+
+    // Atomically update shop stock (add)
+    const updatedShop = await Shop.findByIdAndUpdate(
+      shopId,
+      shopUpdate,
+      { new: true }
+    );
+
+    // Create transaction record
+    const items = Object.entries(stock)
+      .filter(([_, quantity]) => quantity > 0)
+      .map(([flavor, quantity]) => ({ flavor, quantity }));
+
+    const transaction = new Transaction({
+      type: 'stock_allocation',
+      franchiseId,
+      shopId,
+      items,
+      totalQuantity,
+      description: `Stock allocated to shop: ${shop.name}`
+    });
+
+    await transaction.save();
+
+    res.json({
+      success: true,
+      message: 'Stock allocated to shop successfully',
+      franchise: updatedFranchise,
+      shop: updatedShop
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get franchise stock
+// @route   GET /api/stock/franchise
+// @access  Private
+const getFranchiseStock = async (req, res) => {
+  try {
+    let franchiseId;
+
+    if (req.user.role === 'owner') {
+      franchiseId = req.query.franchiseId;
+    } else {
+      franchiseId = req.user.franchiseId;
+    }
+
+    const franchise = await Franchise.findById(franchiseId);
+    
+    if (!franchise) {
+      return res.status(404).json({ message: 'Franchise not found' });
+    }
+
+    res.json({
+      success: true,
+      stock: franchise.stock,
+      totalStock: Object.values(franchise.stock).reduce((a, b) => a + b, 0)
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get shop stock
+// @route   GET /api/stock/shop/:shopId
+// @access  Private (Franchise only)
+const getShopStock = async (req, res) => {
+  try {
+    const shop = await Shop.findById(req.params.shopId);
+
+    if (!shop) {
+      return res.status(404).json({ message: 'Shop not found' });
+    }
+
+    if (shop.franchiseId.toString() !== req.user.franchiseId.toString()) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    res.json({
+      success: true,
+      stock: shop.stock,
+      totalStock: Object.values(shop.stock).reduce((a, b) => a + b, 0)
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get owner available stock
+// @route   GET /api/stock/owner-inventory
+// @access  Private (Owner only)
+const getOwnerInventory = async (req, res) => {
+  try {
+    let inventory = await OwnerInventory.findOne({ owner: req.user.id });
+    
+    if (!inventory) {
+      inventory = new OwnerInventory({
+        owner: req.user.id,
+        totalProduced: { orange: 0, blueberry: 0, jira: 0, lemon: 0, mint: 0, guava: 0 },
+        totalAllocated: { orange: 0, blueberry: 0, jira: 0, lemon: 0, mint: 0, guava: 0 }
+      });
+      await inventory.save();
+    }
+
+    res.json({
+      success: true,
+      totalProduced: inventory.totalProduced,
+      totalAllocated: inventory.totalAllocated,
+      available: inventory.available,
+      totalAvailable: Object.values(inventory.available).reduce((sum, val) => sum + val, 0)
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = {
+  allocateStockToFranchise,
+  allocateStockToShop,
+  getFranchiseStock,
+  getShopStock,
+  getOwnerInventory
+};

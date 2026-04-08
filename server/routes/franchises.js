@@ -1,0 +1,29 @@
+const express = require('express');
+const { auth, ownerAuth, franchiseAuth } = require('../middleware/auth');
+const { franchiseUpdateRules, mongoIdParamRules } = require('../middleware/validation');
+const {
+  getFranchises,
+  getFranchise,
+  updateFranchise,
+  deleteFranchise,
+  getFranchiseAnalytics
+} = require('../controllers/franchiseController');
+
+const router = express.Router();
+
+// Get all franchises (Owner only)
+router.get('/', auth, ownerAuth, getFranchises);
+
+// Get franchise analytics (Owner only)
+router.get('/analytics', auth, ownerAuth, getFranchiseAnalytics);
+
+// Get single franchise (Owner or own franchise)
+router.get('/:id', auth, mongoIdParamRules('id'), getFranchise);
+
+// Update franchise (Owner only)
+router.put('/:id', auth, ownerAuth, mongoIdParamRules('id'), franchiseUpdateRules, updateFranchise);
+
+// Delete franchise (Owner only)
+router.delete('/:id', auth, ownerAuth, mongoIdParamRules('id'), deleteFranchise);
+
+module.exports = router;
