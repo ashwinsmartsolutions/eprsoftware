@@ -13,8 +13,13 @@ const app = express();
 app.set('trust proxy', 1);
 
 // Middleware
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:3000'
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL ||'https://epr-frontend-fpzw.onrender.com'|| 'http://localhost:3000',
+  origin: allowedOrigins,
   credentials: true
 }));
 app.use(express.json());
