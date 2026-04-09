@@ -264,6 +264,7 @@ const getTransactions = async (req, res) => {
 
     const transactions = await Transaction.find(query)
       .populate('shopId', 'name location')
+      .populate('franchiseId', 'name email')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -404,11 +405,12 @@ const getShopSales = async (req, res) => {
 
 // @desc    Update stock allocation transaction
 // @route   PUT /api/transactions/:id
-// @access  Private (Franchise only)
+// @access  Private (Owner, Franchise)
 const updateStockAllocation = async (req, res) => {
   try {
     const { id } = req.params;
     const { items } = req.body;
+    const userRole = req.user.role;
     const franchiseId = req.user.franchiseId;
 
     // Find the existing transaction
@@ -423,17 +425,41 @@ const updateStockAllocation = async (req, res) => {
       return res.status(400).json({ message: 'Can only update stock allocation transactions' });
     }
 
-    // Verify the transaction belongs to this franchise
-    if (transaction.franchiseId.toString() !== franchiseId.toString()) {
-      return res.status(403).json({ message: 'Access denied' });
+    // Determine if this is an owner-to-franchise or franchise-to-shop allocation
+    const isOwnerAllocation = !transaction.shopId;
+
+    // Authorization checks
+    if (userRole === 'owner') {
+      // Owner can only update owner-to-franchise allocations
+      if (!isOwnerAllocation) {
+        return res.status(403).json({ message: 'Owners can only update their allocations to franchises' });
+      }
+    } else {
+      // Franchise can only update their own franchise-to-shop allocations
+      if (isOwnerAllocation) {
+        return res.status(403).json({ message: 'Franchises cannot update owner allocations' });
+      }
+      if (transaction.franchiseId.toString() !== franchiseId.toString()) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
     }
 
-    const shopId = transaction.shopId;
-    const shop = await Shop.findById(shopId);
-    const franchise = await Franchise.findById(franchiseId);
+    const transactionFranchiseId = transaction.franchiseId;
+    const franchise = await Franchise.findById(transactionFranchiseId);
 
-    if (!shop) {
-      return res.status(404).json({ message: 'Shop not found' });
+    if (!franchise) {
+      return res.status(404).json({ message: 'Franchise not found' });
+    }
+
+    // For franchise-to-shop allocations, we also need the shop
+    let shop = null;
+    let shopId = null;
+    if (!isOwnerAllocation) {
+      shopId = transaction.shopId;
+      shop = await Shop.findById(shopId);
+      if (!shop) {
+        return res.status(404).json({ message: 'Shop not found' });
+      }
     }
 
     // Calculate differences between old and new quantities
@@ -468,73 +494,173 @@ const updateStockAllocation = async (req, res) => {
       });
     }
 
-    // Check if franchise has enough stock for increased allocations
-    for (const [flavor, diff] of Object.entries(differences)) {
-      if (diff > 0) {
-        // Trying to allocate more - check if franchise has enough
-        const availableFranchiseStock = franchise.stock[flavor] || 0;
-        if (availableFranchiseStock < diff) {
-          return res.status(400).json({
-            message: `Insufficient franchise stock for ${flavor}. Available: ${availableFranchiseStock}, Additional needed: ${diff}`
-          });
-        }
-      } else if (diff < 0) {
-        // Trying to reduce allocation - check if shop has enough to return
-        const shopStockAvailable = shop.stock[flavor] || 0;
-        const amountToReturn = Math.abs(diff);
-        if (shopStockAvailable < amountToReturn) {
-          return res.status(400).json({
-            message: `Shop doesn't have enough ${flavor} stock to reduce. Shop has: ${shopStockAvailable}, Trying to remove: ${amountToReturn}`
-          });
+    // For owner allocations: validate against owner inventory
+    // For franchise allocations: validate against franchise stock and shop stock
+    if (isOwnerAllocation) {
+      // Owner allocation update - need to check owner inventory via stock controller logic
+      // Get current owner inventory
+      const Production = require('../models/Production');
+      const productions = await Production.find();
+      
+      const totalProduced = {};
+      const totalAllocated = {};
+      flavors.forEach(flavor => {
+        totalProduced[flavor] = productions.reduce((sum, p) => sum + (p.quantity[flavor] || 0), 0);
+        totalAllocated[flavor] = 0;
+      });
+
+      // Calculate total allocated to all franchises (excluding current transaction's franchise)
+      const allAllocations = await Transaction.find({ 
+        type: 'stock_allocation', 
+        shopId: null,
+        _id: { $ne: id }
+      });
+      
+      allAllocations.forEach(alloc => {
+        alloc.items.forEach(item => {
+          const flavor = item.flavor.toLowerCase();
+          if (totalAllocated.hasOwnProperty(flavor)) {
+            totalAllocated[flavor] += item.quantity;
+          }
+        });
+      });
+
+      // Check if owner has enough inventory for increased allocations
+      for (const [flavor, diff] of Object.entries(differences)) {
+        if (diff > 0) {
+          // Trying to allocate more - check if owner has enough available
+          const available = (totalProduced[flavor] || 0) - (totalAllocated[flavor] || 0);
+          if (available < diff) {
+            return res.status(400).json({
+              message: `Insufficient owner inventory for ${flavor}. Available: ${available}, Additional needed: ${diff}`
+            });
+          }
+        } else if (diff < 0) {
+          // Trying to reduce allocation - check if franchise has enough to return
+          const franchiseStockAvailable = franchise.stock[flavor] || 0;
+          const amountToReturn = Math.abs(diff);
+          if (franchiseStockAvailable < amountToReturn) {
+            return res.status(400).json({
+              message: `Franchise doesn't have enough ${flavor} stock to reduce. Franchise has: ${franchiseStockAvailable}, Trying to remove: ${amountToReturn}`
+            });
+          }
         }
       }
+
+      // Build update operations for owner allocation
+      const franchiseUpdate = { $inc: {} };
+
+      Object.entries(differences).forEach(([flavor, diff]) => {
+        // If diff > 0, franchise receives more (add)
+        // If diff < 0, franchise gives back (subtract)
+        franchiseUpdate.$inc[`stock.${flavor}`] = diff;
+      });
+
+      // Update franchise stock
+      const updatedFranchise = await Franchise.findByIdAndUpdate(
+        transactionFranchiseId,
+        franchiseUpdate,
+        { new: true }
+      );
+
+      if (!updatedFranchise) {
+        return res.status(400).json({ message: 'Failed to update franchise stock' });
+      }
+
+      // Update OwnerInventory totalAllocated (fetch, modify, save to trigger hook)
+      const OwnerInventory = require('../models/ProducerInventory');
+      const ownerInventory = await OwnerInventory.findOne({ owner: req.user.id });
+      if (ownerInventory) {
+        Object.entries(differences).forEach(([flavor, diff]) => {
+          // diff > 0 means allocating more (increase totalAllocated)
+          // diff < 0 means reducing allocation (decrease totalAllocated)
+          ownerInventory.totalAllocated[flavor] = (ownerInventory.totalAllocated[flavor] || 0) + diff;
+          if (ownerInventory.totalAllocated[flavor] < 0) ownerInventory.totalAllocated[flavor] = 0;
+        });
+        await ownerInventory.save(); // Triggers pre-save hook to recalculate available
+      }
+
+      // Update the transaction
+      transaction.items = newItems;
+      transaction.totalQuantity = newTotalQuantity;
+      await transaction.save();
+
+      res.json({
+        success: true,
+        message: 'Stock allocation updated successfully',
+        transaction,
+        franchise: updatedFranchise
+      });
+    } else {
+      // Franchise-to-shop allocation update
+      // Check if franchise has enough stock for increased allocations
+      for (const [flavor, diff] of Object.entries(differences)) {
+        if (diff > 0) {
+          // Trying to allocate more - check if franchise has enough
+          const availableFranchiseStock = franchise.stock[flavor] || 0;
+          if (availableFranchiseStock < diff) {
+            return res.status(400).json({
+              message: `Insufficient franchise stock for ${flavor}. Available: ${availableFranchiseStock}, Additional needed: ${diff}`
+            });
+          }
+        } else if (diff < 0) {
+          // Trying to reduce allocation - check if shop has enough to return
+          const shopStockAvailable = shop.stock[flavor] || 0;
+          const amountToReturn = Math.abs(diff);
+          if (shopStockAvailable < amountToReturn) {
+            return res.status(400).json({
+              message: `Shop doesn't have enough ${flavor} stock to reduce. Shop has: ${shopStockAvailable}, Trying to remove: ${amountToReturn}`
+            });
+          }
+        }
+      }
+
+      // Build update operations
+      const franchiseUpdate = { $inc: {} };
+      const shopUpdate = { $inc: {} };
+
+      Object.entries(differences).forEach(([flavor, diff]) => {
+        // If diff > 0, franchise gives more (subtract), shop receives more (add)
+        // If diff < 0, franchise gets back (add), shop gives back (subtract)
+        franchiseUpdate.$inc[`stock.${flavor}`] = -diff;
+        shopUpdate.$inc[`stock.${flavor}`] = diff;
+      });
+
+      // Update franchise stock
+      const updatedFranchise = await Franchise.findByIdAndUpdate(
+        transactionFranchiseId,
+        franchiseUpdate,
+        { new: true }
+      );
+
+      if (!updatedFranchise) {
+        return res.status(400).json({ message: 'Failed to update franchise stock' });
+      }
+
+      // Update shop stock
+      const updatedShop = await Shop.findByIdAndUpdate(
+        shopId,
+        shopUpdate,
+        { new: true }
+      );
+
+      if (!updatedShop) {
+        return res.status(400).json({ message: 'Failed to update shop stock' });
+      }
+
+      // Update the transaction
+      transaction.items = newItems;
+      transaction.totalQuantity = newTotalQuantity;
+      await transaction.save();
+
+      res.json({
+        success: true,
+        message: 'Stock allocation updated successfully',
+        transaction,
+        franchise: updatedFranchise,
+        shop: updatedShop
+      });
     }
-
-    // Build update operations
-    const franchiseUpdate = { $inc: {} };
-    const shopUpdate = { $inc: {} };
-
-    Object.entries(differences).forEach(([flavor, diff]) => {
-      // If diff > 0, franchise gives more (subtract), shop receives more (add)
-      // If diff < 0, franchise gets back (add), shop gives back (subtract)
-      franchiseUpdate.$inc[`stock.${flavor}`] = -diff;
-      shopUpdate.$inc[`stock.${flavor}`] = diff;
-    });
-
-    // Update franchise stock
-    const updatedFranchise = await Franchise.findByIdAndUpdate(
-      franchiseId,
-      franchiseUpdate,
-      { new: true }
-    );
-
-    if (!updatedFranchise) {
-      return res.status(400).json({ message: 'Failed to update franchise stock' });
-    }
-
-    // Update shop stock
-    const updatedShop = await Shop.findByIdAndUpdate(
-      shopId,
-      shopUpdate,
-      { new: true }
-    );
-
-    if (!updatedShop) {
-      return res.status(400).json({ message: 'Failed to update shop stock' });
-    }
-
-    // Update the transaction
-    transaction.items = newItems;
-    transaction.totalQuantity = newTotalQuantity;
-    await transaction.save();
-
-    res.json({
-      success: true,
-      message: 'Stock allocation updated successfully',
-      transaction,
-      franchise: updatedFranchise,
-      shop: updatedShop
-    });
   } catch (error) {
     console.error('Update stock allocation error:', error);
     res.status(500).json({ message: 'Server error' });

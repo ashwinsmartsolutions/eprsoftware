@@ -20,14 +20,23 @@ const allocateStockToFranchise = async (req, res) => {
       });
     }
 
+    // Calculate real-time available for each flavor (produced - allocated)
+    const flavors = ['orange', 'blueberry', 'jira', 'lemon', 'mint', 'guava'];
+    const available = {};
+    flavors.forEach(flavor => {
+      const produced = ownerInventory.totalProduced[flavor] || 0;
+      const allocated = ownerInventory.totalAllocated[flavor] || 0;
+      available[flavor] = Math.max(0, produced - allocated);
+    });
+
     // Check if owner has enough available stock for each flavor
     for (const [flavor, quantity] of Object.entries(stock)) {
       if (quantity > 0) {
-        const available = ownerInventory.available[flavor] || 0;
-        if (available < quantity) {
+        const flavorAvailable = available[flavor] || 0;
+        if (flavorAvailable < quantity) {
           return res.status(400).json({ 
             success: false,
-            message: `Insufficient stock for ${flavor}. Available: ${available}, Requested: ${quantity}` 
+            message: `Insufficient stock for ${flavor}. Available: ${flavorAvailable}, Requested: ${quantity}` 
           });
         }
       }
@@ -60,12 +69,16 @@ const allocateStockToFranchise = async (req, res) => {
       return res.status(404).json({ message: 'Franchise not found or update failed' });
     }
 
-    // Atomically update owner inventory
-    await OwnerInventory.findOneAndUpdate(
-      { owner: req.user.id },
-      ownerInventoryUpdate,
-      { new: true }
-    );
+    // Update owner inventory - fetch, modify, save to trigger pre-save hook
+    const ownerInventoryDoc = await OwnerInventory.findOne({ owner: req.user.id });
+    if (ownerInventoryDoc) {
+      Object.keys(stock).forEach(flavor => {
+        if (stock[flavor] > 0) {
+          ownerInventoryDoc.totalAllocated[flavor] = (ownerInventoryDoc.totalAllocated[flavor] || 0) + stock[flavor];
+        }
+      });
+      await ownerInventoryDoc.save(); // This triggers the pre-save hook to recalculate available
+    }
 
     // Create transaction record
     const items = Object.entries(stock)
@@ -84,11 +97,24 @@ const allocateStockToFranchise = async (req, res) => {
 
     await transaction.save();
 
+    // Reload to get updated values and recalculate available
+    const updatedInventory = await OwnerInventory.findOne({ owner: req.user.id });
+    
+    // Recalculate available per-flavor for accurate response
+    const updatedAvailable = {};
+    if (updatedInventory) {
+      flavors.forEach(flavor => {
+        const produced = updatedInventory.totalProduced[flavor] || 0;
+        const allocated = updatedInventory.totalAllocated[flavor] || 0;
+        updatedAvailable[flavor] = Math.max(0, produced - allocated);
+      });
+    }
+
     res.json({
       success: true,
       message: 'Stock allocated successfully',
       franchise,
-      availableStock: ownerInventory.available
+      availableStock: updatedAvailable
     });
   } catch (error) {
     console.error('Stock allocation error:', error.message);
@@ -264,12 +290,21 @@ const getOwnerInventory = async (req, res) => {
       await inventory.save();
     }
 
+    // Recalculate available in real-time (in case pre-save hook values are stale)
+    const flavors = ['orange', 'blueberry', 'jira', 'lemon', 'mint', 'guava'];
+    const available = {};
+    flavors.forEach(flavor => {
+      const produced = inventory.totalProduced[flavor] || 0;
+      const allocated = inventory.totalAllocated[flavor] || 0;
+      available[flavor] = Math.max(0, produced - allocated);
+    });
+
     res.json({
       success: true,
       totalProduced: inventory.totalProduced,
       totalAllocated: inventory.totalAllocated,
-      available: inventory.available,
-      totalAvailable: Object.values(inventory.available).reduce((sum, val) => sum + val, 0)
+      available: available,
+      totalAvailable: Object.values(available).reduce((sum, val) => sum + val, 0)
     });
   } catch (error) {
     console.error(error);
