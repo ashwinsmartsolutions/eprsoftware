@@ -168,6 +168,12 @@ const getFranchiseDetails = async (req, res) => {
       currentStock[flavor] = Math.max(0, allocated - sold);
     });
 
+    console.log(`[FranchiseDetails] Franchise: ${franchise.name}`);
+    console.log(`[FranchiseDetails] Shops: ${shops.length}, Sales: ${totalSales}, Returns: ${totalReturns}`);
+    console.log(`[FranchiseDetails] Allocated to shops:`, allocatedToShopsByFlavor);
+    console.log(`[FranchiseDetails] Sales by flavor:`, salesByFlavor);
+    console.log(`[FranchiseDetails] Current stock:`, currentStock);
+
     res.json({
       success: true,
       details: {

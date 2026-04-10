@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 const Franchise = require('./models/Franchise');
+const Shop = require('./models/Shop');
 
 require('dotenv').config();
 
@@ -18,6 +18,7 @@ const seedData = async () => {
     // Clear existing data
     await User.deleteMany({});
     await Franchise.deleteMany({});
+    await Shop.deleteMany({});
     console.log('Cleared existing data');
 
     // Create Owner user - pass plain password, User model will hash it
@@ -30,7 +31,7 @@ const seedData = async () => {
     await owner.save();
     console.log('Created owner user');
 
-    // Create demo franchise with zero stock (model defaults handle this)
+    // Create demo franchise
     const demoFranchise = new Franchise({
       name: 'Demo Franchise',
       email: 'dist@epr.com',
@@ -40,7 +41,7 @@ const seedData = async () => {
     await demoFranchise.save();
     console.log('Created demo franchise');
 
-    // Create franchise user - pass plain password, User model will hash it
+    // Create franchise user
     const franchiseUser = new User({
       username: 'demo_franchise',
       email: 'dist@epr.com',
@@ -51,10 +52,46 @@ const seedData = async () => {
     await franchiseUser.save();
     console.log('Created franchise user');
 
+    // Create demo shop for the franchise (zero stock)
+    const demoShop = new Shop({
+      name: 'Main Store',
+      location: 'Downtown',
+      area: 'Central Business District',
+      contact: '9876543210',
+      franchiseId: demoFranchise._id,
+      stock: {
+        orange: 0,
+        blueberry: 0,
+        jira: 0,
+        lemon: 0,
+        mint: 0,
+        guava: 0
+      },
+      totalSold: 0,
+      emptyBottlesReturned: 0
+    });
+    await demoShop.save();
+    console.log('Created demo shop (zero stock)');
+
+    // No production records - start fresh
+    // No transactions - start fresh
+    // All values initialized to zero for real-time tracking
+
+    console.log('\n========================================');
     console.log('Seed data created successfully!');
+    console.log('========================================');
     console.log('\nLogin Credentials:');
     console.log('Owner: admin@epr.com / admin123');
     console.log('Franchise: dist@epr.com / dist123');
+    console.log('\nInitial State (All Values at Zero):');
+    console.log('- Total Franchises: 1');
+    console.log('- Total Produced: 0 bottles');
+    console.log('- Remaining Stock: 0 bottles');
+    console.log('- Total Sold: 0 bottles');
+    console.log('- Empty Bottles Returned: 0');
+    console.log('- Current Shop Stock: 0 bottles');
+    console.log('\nAdd production to begin tracking real-time data.');
+    console.log('========================================');
 
     process.exit(0);
   } catch (error) {
