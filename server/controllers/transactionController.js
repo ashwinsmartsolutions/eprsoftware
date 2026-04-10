@@ -290,11 +290,45 @@ const getTransactions = async (req, res) => {
 const getOwnerOverview = async (req, res) => {
   try {
     const franchises = await Franchise.find();
+    const Production = require('../models/Production');
     
     const totalFranchises = franchises.length;
-    const totalStockIssued = franchises.reduce((sum, fr) => 
-      sum + Object.values(fr.stock).reduce((a, b) => a + b, 0), 0
-    );
+    
+    // Calculate total produced
+    const productions = await Production.find();
+    const totalProduced = {};
+    const flavors = ['orange', 'blueberry', 'jira', 'lemon', 'mint', 'guava'];
+    flavors.forEach(flavor => {
+      totalProduced[flavor] = productions.reduce((sum, p) => sum + (p.quantity[flavor] || 0), 0);
+    });
+    const totalProducedCount = Object.values(totalProduced).reduce((a, b) => a + b, 0);
+    
+    // Calculate total allocated to franchises (from owner allocations)
+    const allocationTransactions = await Transaction.find({
+      shopId: null,
+      type: 'stock_allocation'
+    }).lean();
+    
+    const totalAllocated = {};
+    flavors.forEach(flavor => totalAllocated[flavor] = 0);
+    
+    allocationTransactions.forEach(t => {
+      t.items?.forEach(item => {
+        const flavor = item.flavor.toLowerCase();
+        if (totalAllocated.hasOwnProperty(flavor)) {
+          totalAllocated[flavor] += item.quantity;
+        }
+      });
+    });
+    const totalAllocatedCount = Object.values(totalAllocated).reduce((a, b) => a + b, 0);
+    
+    // Remaining stock = produced - allocated
+    const remainingStock = Math.max(0, totalProducedCount - totalAllocatedCount);
+    const remainingByFlavor = {};
+    flavors.forEach(flavor => {
+      remainingByFlavor[flavor] = Math.max(0, (totalProduced[flavor] || 0) - (totalAllocated[flavor] || 0));
+    });
+    
     const totalSold = franchises.reduce((sum, fr) => sum + fr.totalSold, 0);
     const totalEmptyBottles = franchises.reduce((sum, fr) => sum + fr.totalEmptyBottles, 0);
 
@@ -302,7 +336,8 @@ const getOwnerOverview = async (req, res) => {
       success: true,
       overview: {
         totalFranchises,
-        totalStockIssued,
+        remainingStock,
+        remainingByFlavor,
         totalSold,
         totalEmptyBottles
       }

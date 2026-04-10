@@ -113,15 +113,15 @@ const OverviewCards = ({ overview }) => {
       icon: Users,
       gradient: 'from-blue-500 to-blue-600',
       bgColor: 'bg-blue-50',
-      iconColor: 'text-blue-600',
+      subtext: 'Active'
     },
     {
-      title: 'Total Stock Issued',
-      value: overview.totalStockIssued,
+      title: 'Remaining Stock',
+      value: overview.remainingStock,
       icon: Package,
       gradient: 'from-emerald-500 to-emerald-600',
       bgColor: 'bg-emerald-50',
-      iconColor: 'text-emerald-600',
+      subtext: 'Available for allocation'
     },
     {
       title: 'Total Bottles Sold',
@@ -183,7 +183,8 @@ const Dashboard = () => {
   const location = useLocation();
   const [overview, setOverview] = useState({
     totalFranchises: 0,
-    totalStockIssued: 0,
+    remainingStock: 0,
+    remainingByFlavor: {},
     totalSold: 0,
     totalEmptyBottles: 0,
   });
