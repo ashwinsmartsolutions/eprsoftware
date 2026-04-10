@@ -289,25 +289,33 @@ const getTransactions = async (req, res) => {
 // @access  Private (Owner only)
 const getOwnerOverview = async (req, res) => {
   try {
+    console.log('=== getOwnerOverview called by user:', req.user?.username, 'role:', req.user?.role);
+    
     const franchises = await Franchise.find();
     const Production = require('../models/Production');
     
+    console.log('Found franchises:', franchises.length);
+    
     const totalFranchises = franchises.length;
     
-    // Calculate total produced
+    // Calculate total produced from production records
     const productions = await Production.find();
+    console.log('Found productions:', productions.length);
+    
     const totalProduced = {};
     const flavors = ['orange', 'blueberry', 'jira', 'lemon', 'mint', 'guava'];
     flavors.forEach(flavor => {
       totalProduced[flavor] = productions.reduce((sum, p) => sum + (p.quantity[flavor] || 0), 0);
     });
     const totalProducedCount = Object.values(totalProduced).reduce((a, b) => a + b, 0);
+    console.log('Total produced:', totalProducedCount, 'by flavor:', totalProduced);
     
-    // Calculate total allocated to franchises (from owner allocations)
+    // Calculate total allocated to franchises (owner -> franchise allocations)
     const allocationTransactions = await Transaction.find({
       shopId: null,
       type: 'stock_allocation'
     }).lean();
+    console.log('Found owner allocation transactions:', allocationTransactions.length);
     
     const totalAllocated = {};
     flavors.forEach(flavor => totalAllocated[flavor] = 0);
@@ -321,6 +329,7 @@ const getOwnerOverview = async (req, res) => {
       });
     });
     const totalAllocatedCount = Object.values(totalAllocated).reduce((a, b) => a + b, 0);
+    console.log('Total allocated:', totalAllocatedCount, 'by flavor:', totalAllocated);
     
     // Remaining stock = produced - allocated
     const remainingStock = Math.max(0, totalProducedCount - totalAllocatedCount);
@@ -329,21 +338,67 @@ const getOwnerOverview = async (req, res) => {
       remainingByFlavor[flavor] = Math.max(0, (totalProduced[flavor] || 0) - (totalAllocated[flavor] || 0));
     });
     
-    const totalSold = franchises.reduce((sum, fr) => sum + fr.totalSold, 0);
-    const totalEmptyBottles = franchises.reduce((sum, fr) => sum + fr.totalEmptyBottles, 0);
+    // Calculate TOTAL SOLD from all sale transactions across ALL franchises
+    const allSalesTransactions = await Transaction.find({
+      type: 'sale'
+    }).lean();
+    console.log('Found sale transactions:', allSalesTransactions.length);
+    
+    const totalSold = allSalesTransactions.reduce((sum, t) => sum + (t.totalQuantity || 0), 0);
+    
+    // Calculate sales by flavor
+    const salesByFlavor = {};
+    flavors.forEach(flavor => salesByFlavor[flavor] = 0);
+    
+    allSalesTransactions.forEach(t => {
+      t.items?.forEach(item => {
+        const flavor = item.flavor.toLowerCase();
+        if (salesByFlavor.hasOwnProperty(flavor)) {
+          salesByFlavor[flavor] += item.quantity;
+        }
+      });
+    });
+    console.log('Total sold:', totalSold, 'by flavor:', salesByFlavor);
+    
+    // Calculate TOTAL EMPTY BOTTLES from all return transactions
+    const allReturnTransactions = await Transaction.find({
+      type: 'empty_bottle_return'
+    }).lean();
+    console.log('Found return transactions:', allReturnTransactions.length);
+    
+    const totalEmptyBottles = allReturnTransactions.reduce((sum, t) => sum + (t.totalQuantity || 0), 0);
+    
+    // Calculate returns by flavor
+    const returnsByFlavor = {};
+    flavors.forEach(flavor => returnsByFlavor[flavor] = 0);
+    
+    allReturnTransactions.forEach(t => {
+      t.items?.forEach(item => {
+        const flavor = item.flavor.toLowerCase();
+        if (returnsByFlavor.hasOwnProperty(flavor)) {
+          returnsByFlavor[flavor] += item.quantity;
+        }
+      });
+    });
+    console.log('Total empty bottles:', totalEmptyBottles, 'by flavor:', returnsByFlavor);
 
-    res.json({
+    const response = {
       success: true,
       overview: {
         totalFranchises,
         remainingStock,
         remainingByFlavor,
         totalSold,
-        totalEmptyBottles
+        totalEmptyBottles,
+        salesByFlavor,
+        returnsByFlavor
       }
-    });
+    };
+    
+    console.log('=== Sending response:', JSON.stringify(response, null, 2));
+    res.json(response);
   } catch (error) {
-    console.error(error);
+    console.error('Get owner overview error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
