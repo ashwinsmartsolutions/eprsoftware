@@ -102,16 +102,35 @@ const getFranchiseDetails = async (req, res) => {
 
     const returnTransactions = await Transaction.find({
       shopId: { $in: shopIds },
-      type: 'return'
+      type: 'empty_bottle_return'
     }).sort({ createdAt: -1 }).lean();
+
+    // Get stock allocation transactions from franchise to shops
+    const allocationTransactions = await Transaction.find({
+      shopId: { $in: shopIds },
+      type: 'stock_allocation'
+    }).lean();
 
     // Calculate totals
     const totalSales = salesTransactions.reduce((sum, t) => sum + (t.totalQuantity || 0), 0);
     const totalReturns = returnTransactions.reduce((sum, t) => sum + (t.totalQuantity || 0), 0);
     const totalShops = shops.length;
 
-    // Calculate stock allocated to franchise
-    const totalStockAllocated = Object.values(franchise.stock || {}).reduce((sum, val) => sum + val, 0);
+    // Calculate stock allocated FROM owner TO this franchise (historical)
+    const ownerAllocationTransactions = await Transaction.find({
+      franchiseId: id,
+      shopId: null,
+      type: 'stock_allocation'
+    }).lean();
+    
+    const totalStockAllocatedByOwner = {};
+    ownerAllocationTransactions.forEach(t => {
+      t.items?.forEach(item => {
+        const flavor = item.flavor.toLowerCase();
+        totalStockAllocatedByOwner[flavor] = (totalStockAllocatedByOwner[flavor] || 0) + item.quantity;
+      });
+    });
+    const totalStockAllocated = Object.values(totalStockAllocatedByOwner).reduce((sum, val) => sum + val, 0);
 
     // Calculate total sold by flavor
     const salesByFlavor = {};
@@ -129,6 +148,24 @@ const getFranchiseDetails = async (req, res) => {
         const flavor = item.flavor.toLowerCase();
         returnsByFlavor[flavor] = (returnsByFlavor[flavor] || 0) + item.quantity;
       });
+    });
+
+    // Calculate stock allocated to shops by flavor
+    const allocatedToShopsByFlavor = {};
+    allocationTransactions.forEach(t => {
+      t.items?.forEach(item => {
+        const flavor = item.flavor.toLowerCase();
+        allocatedToShopsByFlavor[flavor] = (allocatedToShopsByFlavor[flavor] || 0) + item.quantity;
+      });
+    });
+
+    // Calculate REAL current stock in shops (allocated - sales)
+    const currentStock = {};
+    const flavors = ['orange', 'blueberry', 'jira', 'lemon', 'mint', 'guava'];
+    flavors.forEach(flavor => {
+      const allocated = allocatedToShopsByFlavor[flavor] || 0;
+      const sold = salesByFlavor[flavor] || 0;
+      currentStock[flavor] = Math.max(0, allocated - sold);
     });
 
     res.json({
@@ -150,7 +187,9 @@ const getFranchiseDetails = async (req, res) => {
           totalStockAllocated,
           salesByFlavor,
           returnsByFlavor,
-          currentStock: franchise.stock || {}
+          currentStock: currentStock,
+          allocatedToShopsByFlavor: allocatedToShopsByFlavor,
+          franchiseStock: franchise.stock || {}
         },
         recentSales: salesTransactions.slice(0, 10),
         recentReturns: returnTransactions.slice(0, 10)

@@ -15,7 +15,7 @@ import {
   X,
   Factory
 } from 'lucide-react';
-import { transactionAPI } from '../services/api';
+import { transactionAPI, stockAPI } from '../services/api';
 import FranchiseManagement from '../components/FranchiseManagement';
 import StockAllocation from '../components/StockAllocation';
 import OwnerProduction from '../components/OwnerProduction';
@@ -169,6 +169,15 @@ const OverviewCards = ({ overview }) => {
   );
 };
 
+const flavors = [
+  { key: 'orange', label: 'Orange', color: 'bg-orange-500', textColor: 'text-orange-600', bgColor: 'bg-orange-50' },
+  { key: 'blueberry', label: 'Blueberry', color: 'bg-blue-600', textColor: 'text-blue-600', bgColor: 'bg-blue-50' },
+  { key: 'jira', label: 'Jira', color: 'bg-purple-500', textColor: 'text-purple-600', bgColor: 'bg-purple-50' },
+  { key: 'lemon', label: 'Lemon', color: 'bg-yellow-500', textColor: 'text-yellow-600', bgColor: 'bg-yellow-50' },
+  { key: 'mint', label: 'Mint', color: 'bg-green-500', textColor: 'text-green-600', bgColor: 'bg-green-50' },
+  { key: 'guava', label: 'Guava', color: 'bg-pink-500', textColor: 'text-pink-600', bgColor: 'bg-pink-50' },
+];
+
 const Dashboard = () => {
   const { user } = useAuth();
   const location = useLocation();
@@ -178,10 +187,16 @@ const Dashboard = () => {
     totalSold: 0,
     totalEmptyBottles: 0,
   });
+  const [inventory, setInventory] = useState({
+    available: {},
+    totalProduced: {},
+    totalAllocated: {},
+  });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchOverview();
+    fetchInventory();
   }, [location.pathname]);
 
   const fetchOverview = async () => {
@@ -197,6 +212,23 @@ const Dashboard = () => {
       setLoading(false);
     }
   };
+
+  const fetchInventory = async () => {
+    try {
+      const response = await stockAPI.getOwnerInventory();
+      if (response.data.success) {
+        setInventory({
+          available: response.data.available || {},
+          totalProduced: response.data.totalProduced || {},
+          totalAllocated: response.data.totalAllocated || {},
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching inventory:', error);
+    }
+  };
+
+  const totalAvailable = Object.values(inventory.available).reduce((sum, val) => sum + val, 0);
 
   if (loading) {
     return (
@@ -227,29 +259,70 @@ const Dashboard = () => {
       <h1 className="heading-1 mb-6 sm:mb-8 mt-6">Owner Dashboard</h1>
       <OverviewCards overview={overview} />
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mt-6 sm:mt-8">
+      {/* Available Stock Section */}
+      <div className="mt-6 sm:mt-8">
         <div className="card">
-          <h2 className="heading-3 mb-4">Recent Activity</h2>
-          <p className="text-body">Transaction history and recent updates will appear here.</p>
-        </div>
-        
-        <div className="card">
-          <h2 className="heading-3 mb-4">Quick Actions</h2>
-          <div className="space-y-3">
-            <Link
-              to="/owner/franchises"
-              className="btn btn-primary w-full"
-            >
-              <Plus className="h-5 w-5" />
-              <span>Add New Franchise</span>
-            </Link>
-            <Link
-              to="/owner/stock-allocation"
-              className="btn btn-secondary w-full"
-            >
-              <Package className="h-5 w-5" />
-              <span>Allocate Stock</span>
-            </Link>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <Package className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div>
+              <h2 className="heading-3">Available Stock</h2>
+              <p className="text-sm text-gray-500">Current inventory available for allocation</p>
+            </div>
+          </div>
+          
+          {/* Total Available Stock Card */}
+          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-4 sm:p-6 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-emerald-600 text-sm font-medium">Total Available Stock</p>
+                <p className="text-3xl sm:text-4xl font-bold text-emerald-900 mt-1">{totalAvailable}</p>
+                <p className="text-sm text-emerald-600 mt-1">bottles ready for allocation</p>
+              </div>
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-emerald-500 flex items-center justify-center">
+                <Package className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
+              </div>
+            </div>
+          </div>
+          
+          {/* Stock by Flavor Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+            {flavors.map((flavor) => {
+              const quantity = inventory.available[flavor.key] || 0;
+              return (
+                <div key={flavor.key} className={`${flavor.bgColor} border border-gray-200 rounded-xl p-3 sm:p-4`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`w-3 h-3 rounded-full ${flavor.color}`}></div>
+                    <span className={`text-sm font-semibold ${flavor.textColor}`}>{flavor.label}</span>
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">{quantity}</p>
+                  <p className="text-xs text-gray-500">bottles</p>
+                </div>
+              );
+            })}
+          </div>
+          
+          {/* Production Summary */}
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="text-center sm:text-left">
+                <p className="text-sm text-gray-500">Total Produced</p>
+                <p className="text-xl font-bold text-gray-900">
+                  {Object.values(inventory.totalProduced).reduce((sum, val) => sum + val, 0)}
+                </p>
+              </div>
+              <div className="text-center sm:text-left">
+                <p className="text-sm text-gray-500">Total Allocated</p>
+                <p className="text-xl font-bold text-gray-900">
+                  {Object.values(inventory.totalAllocated).reduce((sum, val) => sum + val, 0)}
+                </p>
+              </div>
+              <div className="text-center sm:text-left">
+                <p className="text-sm text-gray-500">Remaining</p>
+                <p className="text-xl font-bold text-emerald-600">{totalAvailable}</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

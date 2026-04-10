@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { franchiseAPI } from '../services/api';
 import { 
   ArrowLeft, 
@@ -14,7 +14,9 @@ import {
   Clock,
   Circle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  RefreshCw,
+  Radio
 } from 'lucide-react';
 
 const FranchiseDetails = () => {
@@ -28,29 +30,95 @@ const FranchiseDetails = () => {
     sales: true,
     returns: true
   });
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [liveMode, setLiveMode] = useState(true);
+  const [changedValues, setChangedValues] = useState(new Set());
+  const prevDetailsRef = useRef(null);
 
   useEffect(() => {
     fetchFranchiseDetails();
-  }, [id]);
+    
+    // Set up real-time polling every 5 seconds when live mode is on
+    let intervalId;
+    if (liveMode) {
+      intervalId = setInterval(() => {
+        fetchFranchiseDetails(true); // silent refresh (no loading spinner)
+      }, 5000);
+    }
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [id, liveMode]);
 
-  const fetchFranchiseDetails = async () => {
+  const fetchFranchiseDetails = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
+      if (silent) setIsRefreshing(true);
       setError(null);
-      console.log('Fetching franchise details for ID:', id);
+      
       const response = await franchiseAPI.getDetails(id);
-      console.log('Franchise details response:', response.data);
+      
       if (response.data.success) {
-        setDetails(response.data.details);
+        const newDetails = response.data.details;
+        
+        // Track which values changed for visual highlighting
+        if (prevDetailsRef.current && details) {
+          const changed = new Set();
+          const prevStats = prevDetailsRef.current.stats;
+          const newStats = newDetails.stats;
+          
+          // Check main stats
+          if (prevStats.totalSales !== newStats.totalSales) changed.add('totalSales');
+          if (prevStats.totalReturns !== newStats.totalReturns) changed.add('totalReturns');
+          if (prevStats.totalStockAllocated !== newStats.totalStockAllocated) changed.add('totalStockAllocated');
+          if (prevStats.totalShops !== newStats.totalShops) changed.add('totalShops');
+          
+          // Check flavor values
+          flavors.forEach(f => {
+            const key = f.key;
+            if ((prevStats.currentStock?.[key] || 0) !== (newStats.currentStock?.[key] || 0)) {
+              changed.add(`stock-${key}`);
+            }
+            if ((prevStats.salesByFlavor?.[key] || 0) !== (newStats.salesByFlavor?.[key] || 0)) {
+              changed.add(`sales-${key}`);
+            }
+            if ((prevStats.returnsByFlavor?.[key] || 0) !== (newStats.returnsByFlavor?.[key] || 0)) {
+              changed.add(`returns-${key}`);
+            }
+          });
+          
+          if (changed.size > 0) {
+            setChangedValues(changed);
+            // Clear highlights after 2 seconds
+            setTimeout(() => setChangedValues(new Set()), 2000);
+          }
+        }
+        
+        prevDetailsRef.current = newDetails;
+        setDetails(newDetails);
+        setLastUpdated(new Date());
       } else {
         setError('Failed to load franchise details: ' + (response.data.message || 'Unknown error'));
       }
     } catch (err) {
       console.error('Error fetching franchise details:', err);
-      setError('Failed to load franchise details: ' + (err.response?.data?.message || err.message || 'Unknown error'));
+      if (!silent) {
+        setError('Failed to load franchise details: ' + (err.response?.data?.message || err.message || 'Unknown error'));
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
+      if (silent) setIsRefreshing(false);
     }
+  };
+
+  const handleManualRefresh = () => {
+    fetchFranchiseDetails(true);
+  };
+
+  const toggleLiveMode = () => {
+    setLiveMode(prev => !prev);
   };
 
   const toggleSection = (section) => {
@@ -59,6 +127,8 @@ const FranchiseDetails = () => {
       [section]: !prev[section]
     }));
   };
+
+  const isValueChanged = (key) => changedValues.has(key);
 
   const flavors = [
     { key: 'orange', label: 'Orange', color: 'bg-orange-500' },
@@ -118,16 +188,50 @@ const FranchiseDetails = () => {
   return (
     <div className="section-spacing">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <button
-          onClick={() => navigate('/owner/franchises')}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <ArrowLeft className="h-6 w-6 text-gray-600" />
-        </button>
-        <div>
-          <h2 className="heading-2">{franchise.name}</h2>
-          <p className="text-sm text-gray-500">Franchise Details</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/owner/franchises')}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="h-6 w-6 text-gray-600" />
+          </button>
+          <div>
+            <h2 className="heading-2">{franchise.name}</h2>
+            <p className="text-sm text-gray-500">Franchise Details</p>
+          </div>
+        </div>
+        
+        {/* Live indicator and controls */}
+        <div className="flex items-center gap-3">
+          {lastUpdated && (
+            <span className="text-xs text-gray-500 hidden sm:block">
+              Last updated: {lastUpdated.toLocaleTimeString()}
+            </span>
+          )}
+          
+          <button
+            onClick={toggleLiveMode}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+              liveMode 
+                ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+            title={liveMode ? 'Live updates ON (click to pause)' : 'Live updates OFF (click to resume)'}
+          >
+            <Radio className={`h-4 w-4 ${liveMode ? 'animate-pulse' : ''}`} />
+            {liveMode ? 'Live' : 'Paused'}
+          </button>
+          
+          <button
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all disabled:opacity-50"
+            title="Refresh now"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
         </div>
       </div>
 
@@ -187,53 +291,53 @@ const FranchiseDetails = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="stat-card bg-gradient-to-br from-blue-50 to-blue-100">
+        <div className={`stat-card bg-gradient-to-br from-blue-50 to-blue-100 transition-all duration-300 ${isValueChanged('totalShops') ? 'ring-2 ring-blue-400 ring-offset-2 scale-105 shadow-lg' : ''}`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm font-medium">Total Shops</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalShops}</p>
+              <p className={`text-2xl font-bold mt-1 transition-colors duration-300 ${isValueChanged('totalShops') ? 'text-blue-600' : 'text-gray-900'}`}>{stats.totalShops}</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
-              <Store className="h-6 w-6 text-blue-600" />
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors duration-300 ${isValueChanged('totalShops') ? 'bg-blue-200' : 'bg-blue-100'}`}>
+              <Store className={`h-6 w-6 transition-colors duration-300 ${isValueChanged('totalShops') ? 'text-blue-700' : 'text-blue-600'}`} />
             </div>
           </div>
         </div>
 
-        <div className="stat-card bg-gradient-to-br from-purple-50 to-purple-100">
+        <div className={`stat-card bg-gradient-to-br from-purple-50 to-purple-100 transition-all duration-300 ${isValueChanged('totalStockAllocated') ? 'ring-2 ring-purple-400 ring-offset-2 scale-105 shadow-lg' : ''}`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm font-medium">Stock Allocated</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalStockAllocated.toLocaleString()}</p>
+              <p className={`text-2xl font-bold mt-1 transition-colors duration-300 ${isValueChanged('totalStockAllocated') ? 'text-purple-600' : 'text-gray-900'}`}>{stats.totalStockAllocated.toLocaleString()}</p>
               <p className="text-xs text-gray-500">bottles</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
-              <Package className="h-6 w-6 text-purple-600" />
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors duration-300 ${isValueChanged('totalStockAllocated') ? 'bg-purple-200' : 'bg-purple-100'}`}>
+              <Package className={`h-6 w-6 transition-colors duration-300 ${isValueChanged('totalStockAllocated') ? 'text-purple-700' : 'text-purple-600'}`} />
             </div>
           </div>
         </div>
 
-        <div className="stat-card bg-gradient-to-br from-green-50 to-green-100">
+        <div className={`stat-card bg-gradient-to-br from-green-50 to-green-100 transition-all duration-300 ${isValueChanged('totalSales') ? 'ring-2 ring-green-400 ring-offset-2 scale-105 shadow-lg' : ''}`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm font-medium">Total Sales</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalSales.toLocaleString()}</p>
+              <p className={`text-2xl font-bold mt-1 transition-colors duration-300 ${isValueChanged('totalSales') ? 'text-green-600' : 'text-gray-900'}`}>{stats.totalSales.toLocaleString()}</p>
               <p className="text-xs text-gray-500">bottles sold</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
-              <TrendingUp className="h-6 w-6 text-green-600" />
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors duration-300 ${isValueChanged('totalSales') ? 'bg-green-200' : 'bg-green-100'}`}>
+              <TrendingUp className={`h-6 w-6 transition-colors duration-300 ${isValueChanged('totalSales') ? 'text-green-700' : 'text-green-600'}`} />
             </div>
           </div>
         </div>
 
-        <div className="stat-card bg-gradient-to-br from-orange-50 to-orange-100">
+        <div className={`stat-card bg-gradient-to-br from-orange-50 to-orange-100 transition-all duration-300 ${isValueChanged('totalReturns') ? 'ring-2 ring-orange-400 ring-offset-2 scale-105 shadow-lg' : ''}`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-500 text-sm font-medium">Returns</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalReturns.toLocaleString()}</p>
+              <p className={`text-2xl font-bold mt-1 transition-colors duration-300 ${isValueChanged('totalReturns') ? 'text-orange-600' : 'text-gray-900'}`}>{stats.totalReturns.toLocaleString()}</p>
               <p className="text-xs text-gray-500">empty bottles</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center">
-              <Recycle className="h-6 w-6 text-orange-600" />
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors duration-300 ${isValueChanged('totalReturns') ? 'bg-orange-200' : 'bg-orange-100'}`}>
+              <Recycle className={`h-6 w-6 transition-colors duration-300 ${isValueChanged('totalReturns') ? 'text-orange-700' : 'text-orange-600'}`} />
             </div>
           </div>
         </div>
@@ -248,11 +352,12 @@ const FranchiseDetails = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {flavors.map((flavor) => {
             const stockQty = stats.currentStock[flavor.key] || 0;
+            const changed = isValueChanged(`stock-${flavor.key}`);
             return (
-              <div key={flavor.key} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-3 text-center border border-gray-100">
-                <div className={`w-4 h-4 rounded-full ${flavor.color} mx-auto mb-2 shadow-sm`}></div>
+              <div key={flavor.key} className={`rounded-xl p-3 text-center border transition-all duration-300 ${changed ? 'bg-gradient-to-br from-blue-100 to-blue-200 border-blue-300 ring-2 ring-blue-400 scale-105 shadow-lg' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-100'}`}>
+                <div className={`w-4 h-4 rounded-full ${flavor.color} mx-auto mb-2 shadow-sm ${changed ? 'scale-125' : ''} transition-transform duration-300`}></div>
                 <p className="text-sm font-medium text-gray-600">{flavor.label}</p>
-                <p className="text-xl font-bold text-gray-900">{stockQty.toLocaleString()}</p>
+                <p className={`text-xl font-bold transition-colors duration-300 ${changed ? 'text-blue-600' : 'text-gray-900'}`}>{stockQty.toLocaleString()}</p>
               </div>
             );
           })}
@@ -268,11 +373,12 @@ const FranchiseDetails = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {flavors.map((flavor) => {
             const salesQty = stats.salesByFlavor[flavor.key] || 0;
+            const changed = isValueChanged(`sales-${flavor.key}`);
             return (
-              <div key={flavor.key} className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-3 text-center border border-green-100">
-                <div className={`w-4 h-4 rounded-full ${flavor.color} mx-auto mb-2 shadow-sm`}></div>
+              <div key={flavor.key} className={`rounded-xl p-3 text-center border transition-all duration-300 ${changed ? 'bg-gradient-to-br from-green-100 to-green-200 border-green-300 ring-2 ring-green-400 scale-105 shadow-lg' : 'bg-gradient-to-br from-green-50 to-green-100 border-green-100'}`}>
+                <div className={`w-4 h-4 rounded-full ${flavor.color} mx-auto mb-2 shadow-sm ${changed ? 'scale-125' : ''} transition-transform duration-300`}></div>
                 <p className="text-sm font-medium text-gray-600">{flavor.label}</p>
-                <p className="text-xl font-bold text-gray-900">{salesQty.toLocaleString()}</p>
+                <p className={`text-xl font-bold transition-colors duration-300 ${changed ? 'text-green-600' : 'text-gray-900'}`}>{salesQty.toLocaleString()}</p>
               </div>
             );
           })}
@@ -288,11 +394,12 @@ const FranchiseDetails = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           {flavors.map((flavor) => {
             const returnQty = stats.returnsByFlavor[flavor.key] || 0;
+            const changed = isValueChanged(`returns-${flavor.key}`);
             return (
-              <div key={flavor.key} className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-3 text-center border border-orange-100">
-                <div className={`w-4 h-4 rounded-full ${flavor.color} mx-auto mb-2 shadow-sm`}></div>
+              <div key={flavor.key} className={`rounded-xl p-3 text-center border transition-all duration-300 ${changed ? 'bg-gradient-to-br from-orange-100 to-orange-200 border-orange-300 ring-2 ring-orange-400 scale-105 shadow-lg' : 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-100'}`}>
+                <div className={`w-4 h-4 rounded-full ${flavor.color} mx-auto mb-2 shadow-sm ${changed ? 'scale-125' : ''} transition-transform duration-300`}></div>
                 <p className="text-sm font-medium text-gray-600">{flavor.label}</p>
-                <p className="text-xl font-bold text-gray-900">{returnQty.toLocaleString()}</p>
+                <p className={`text-xl font-bold transition-colors duration-300 ${changed ? 'text-orange-600' : 'text-gray-900'}`}>{returnQty.toLocaleString()}</p>
               </div>
             );
           })}
