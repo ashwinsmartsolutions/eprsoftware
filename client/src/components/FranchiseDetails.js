@@ -75,9 +75,12 @@ const FranchiseDetails = () => {
         
         // Debug logging with timestamp
         console.log(`[FranchiseDetails ${new Date().toLocaleTimeString()}] Franchise: ${newDetails.franchise?.name} (${id})`);
-        console.log('[FranchiseDetails] Current Stock by Flavor:', newDetails.stats?.currentStock);
-        console.log('[FranchiseDetails] Sales by Flavor:', newDetails.stats?.salesByFlavor);
+        console.log('[FranchiseDetails] Current Stock (Remaining):', newDetails.stats?.currentStock);
+        console.log('[FranchiseDetails] Stock from Owner:', newDetails.stats?.totalStockAllocated);
+        console.log('[FranchiseDetails] Franchise Production:', newDetails.stats?.producedByFranchise);
         console.log('[FranchiseDetails] Allocated to Shops:', newDetails.stats?.allocatedToShopsByFlavor);
+        console.log('[FranchiseDetails] Sales by Flavor:', newDetails.stats?.salesByFlavor);
+        console.log('[FranchiseDetails] Total Current Stock:', newDetails.stats?.totalCurrentStock);
         console.log('[FranchiseDetails] Total Stats:', {
           totalSales: newDetails.stats?.totalSales,
           totalStockAllocated: newDetails.stats?.totalStockAllocated,
