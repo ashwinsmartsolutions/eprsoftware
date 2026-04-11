@@ -274,24 +274,52 @@ const getShopStock = async (req, res) => {
   }
 };
 
-// @desc    Get owner available stock (now aggregates all franchise production)
+// @desc    Get owner available stock (aggregates all franchise production and allocations)
 // @route   GET /api/stock/owner-inventory
 // @access  Private (Owner only)
 const getOwnerInventory = async (req, res) => {
   try {
-    // Get all franchises' stock
-    const franchises = await Franchise.find();
-    
-    // Aggregate production from all franchises
     const flavors = ['orange', 'blueberry', 'jira', 'lemon', 'mint', 'guava'];
-    const totalProduced = {};
-    const totalAllocated = {};
-    const available = {};
     
+    // 1. Calculate Total Produced from all Production records across all franchises
+    const Production = require('../models/Production');
+    const productions = await Production.find();
+    
+    const totalProduced = {};
     flavors.forEach(flavor => {
-      totalProduced[flavor] = franchises.reduce((sum, f) => sum + (f.stock?.[flavor] || 0), 0);
-      totalAllocated[flavor] = 0; // Will track later if needed
-      available[flavor] = totalProduced[flavor];
+      totalProduced[flavor] = productions.reduce((sum, p) => sum + (p.stock?.[flavor] || p.quantity?.[flavor] || 0), 0);
+    });
+    
+    // 2. Calculate Total Allocated (owner -> franchise stock allocations)
+    // Get all allocation transactions (owner allocating to franchises)
+    const allocations = await Transaction.find({
+      type: 'stock_allocation',
+      franchiseId: { $exists: true, $ne: null }
+    }).lean();
+    
+    const totalAllocated = {};
+    flavors.forEach(flavor => totalAllocated[flavor] = 0);
+    
+    allocations.forEach(t => {
+      t.items?.forEach(item => {
+        const flavor = item.flavor?.toLowerCase();
+        if (flavor && totalAllocated.hasOwnProperty(flavor)) {
+          totalAllocated[flavor] += item.quantity || 0;
+        }
+      });
+    });
+    
+    // 3. Calculate Available = Produced - Allocated (what's left at owner level)
+    const available = {};
+    flavors.forEach(flavor => {
+      available[flavor] = Math.max(0, (totalProduced[flavor] || 0) - (totalAllocated[flavor] || 0));
+    });
+    
+    // 4. Get current franchise stock (what franchises currently have)
+    const franchises = await Franchise.find();
+    const franchiseStock = {};
+    flavors.forEach(flavor => {
+      franchiseStock[flavor] = franchises.reduce((sum, f) => sum + (f.stock?.[flavor] || 0), 0);
     });
 
     res.json({
@@ -299,11 +327,14 @@ const getOwnerInventory = async (req, res) => {
       totalProduced,
       totalAllocated,
       available,
+      franchiseStock,
       totalAvailable: Object.values(available).reduce((sum, val) => sum + val, 0),
+      totalProducedCount: Object.values(totalProduced).reduce((sum, val) => sum + val, 0),
+      totalAllocatedCount: Object.values(totalAllocated).reduce((sum, val) => sum + val, 0),
       franchiseCount: franchises.length
     });
   } catch (error) {
-    console.error(error);
+    console.error('Get owner inventory error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
