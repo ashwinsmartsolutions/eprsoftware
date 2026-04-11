@@ -30,9 +30,9 @@ const FranchiseDetails = () => {
   const [details, setDetails] = useState(null);
   const [error, setError] = useState(null);
   const [expandedSections, setExpandedSections] = useState({
-    shops: true,
-    sales: true,
-    returns: true,
+    shops: false,
+    sales: false,
+    returns: false,
     production: true
   });
   const [lastUpdated, setLastUpdated] = useState(null);
