@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { shopAPI } from '../services/api';
-import { Plus, Edit, Trash2, X, MapPin, Phone, Store, Recycle, TrendingUp } from 'lucide-react';
+import { Plus, Edit, Trash2, X, MapPin, Phone, Store, Recycle, TrendingUp, Search, Filter, MoreVertical } from 'lucide-react';
 
 const ShopForm = ({ shop, areas, onClose, onSubmit, onAddArea, viewMode }) => {
   const [formData, setFormData] = useState({
@@ -321,73 +321,100 @@ const ShopManagement = () => {
     );
   }
   return (
-    <div className="section-spacing">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-        <h2 className="heading-2">Shop Management</h2>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+    <div className="space-y-6">
+      {/* Header Section */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div>
+          <h2 className="heading-2 flex items-center gap-2">
+            <Store className="h-6 w-6 text-primary-600" />
+            Shop Management
+          </h2>
+          <p className="text-gray-600 mt-1">Manage your shops, track sales and returns</p>
+        </div>
+        
+        {/* Stats Overview */}
+        <div className="flex gap-3">
+          <div className="bg-blue-50 px-4 py-2 rounded-xl">
+            <span className="text-xs text-blue-600 font-medium block">Total Shops</span>
+            <span className="text-xl font-bold text-blue-700">{filteredShops.length}</span>
+          </div>
+          <div className="bg-emerald-50 px-4 py-2 rounded-xl">
+            <span className="text-xs text-emerald-600 font-medium block">Active</span>
+            <span className="text-xl font-bold text-emerald-700">
+              {filteredShops.filter(s => s.status === 'active').length}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Controls Bar */}
+      <div className="flex flex-col sm:flex-row gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+        {/* Search */}
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
             placeholder="Search shops..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="input w-full sm:w-48 py-2.5"
+            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
           />
-          {!showAddArea ? (
-            <div className="relative">
-              <select
-                value={selectedArea}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (value === 'add-new') {
-                    setShowAddArea(true);
-                  } else {
-                    setSelectedArea(value);
-                  }
-                }}
-                className="w-full sm:w-56 min-w-[160px] bg-gradient-to-r from-white to-gray-50 border-2 border-gray-200 rounded-xl px-4 py-2.5 pr-12 text-sm text-gray-800 hover:border-blue-300 hover:shadow-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2720%27 height=%2720%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%233b82f6%27 stroke-width=%272.5%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3e%3cpolyline points=%276 9 12 15 18 9%27%3e%3c/polyline%3e%3c/svg%3e')] bg-[length:1.25rem] bg-[right_0.75rem_center] bg-no-repeat font-semibold shadow-sm"
-              >
-                <option value="">📍 All Areas</option>
-                {areas.map((area) => (
-                  <option key={area} value={area}>📍 {area}</option>
-                ))}
-                <option value="add-new" className="font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100">➕ Add New Area</option>
-              </select>
-              {selectedArea && (
-                <span className="absolute right-10 top-1/2 -translate-y-1/2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                  {filteredShops.length}
-                </span>
-              )}
-            </div>
-          ) : null}
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                setSelectedShop(null);
-                setShowForm(true);
+        </div>
+        
+        {/* Area Filter */}
+        {!showAddArea && (
+          <div className="relative">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <select
+              value={selectedArea}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === 'add-new') {
+                  setShowAddArea(true);
+                } else {
+                  setSelectedArea(value);
+                }
               }}
-              className="btn btn-primary flex-1 sm:flex-none py-2.5"
+              className="w-full sm:w-48 pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all cursor-pointer appearance-none"
             >
-              <Plus className="h-5 w-5" />
-              <span>Add Shop</span>
-            </button>
-            {!deleteMode ? (
-              <button
-                onClick={() => setDeleteMode(true)}
-                className="btn btn-danger flex-1 sm:flex-none py-2.5"
-              >
-                <Trash2 className="h-5 w-5" />
-                <span>Delete Shop</span>
-              </button>
-            ) : (
-              <button
-                onClick={cancelDeleteMode}
-                className="btn btn-secondary flex-1 sm:flex-none py-2.5"
-              >
-                <X className="h-5 w-5" />
-                <span>Cancel</span>
-              </button>
-            )}
+              <option value="">All Areas</option>
+              {areas.map((area) => (
+                <option key={area} value={area}>{area}</option>
+              ))}
+              <option value="add-new" className="text-primary-600">+ Add New Area</option>
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           </div>
+        )}
+        
+        {/* Action Buttons */}
+        <div className="flex gap-2 sm:ml-auto">
+          <button
+            onClick={() => {
+              setSelectedShop(null);
+              setShowForm(true);
+            }}
+            className="btn btn-primary px-4 py-2.5"
+          >
+            <Plus className="h-4 w-4 mr-1.5" />
+            <span>Add Shop</span>
+          </button>
+          {!deleteMode ? (
+            <button
+              onClick={() => setDeleteMode(true)}
+              className="btn btn-danger px-4 py-2.5"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          ) : (
+            <button
+              onClick={cancelDeleteMode}
+              className="btn btn-secondary px-4 py-2.5"
+            >
+              <X className="h-4 w-4 mr-1.5" />
+              <span>Cancel</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -415,89 +442,112 @@ const ShopManagement = () => {
         </div>
       )}
 
-      <div className="card-grid">
+      {/* Shop Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filteredShops.map((shop) => (
           <div
             key={shop._id}
             onClick={() => handleShopCardClick(shop)}
-            className={`card card-hover group cursor-pointer transition-all duration-200 ${
+            className={`bg-white rounded-xl border transition-all duration-200 overflow-hidden ${
               deleteMode
                 ? shopToDelete?._id === shop._id
-                  ? 'ring-2 ring-red-500 bg-red-50'
-                  : 'hover:bg-red-50'
-                : ''
+                  ? 'border-red-400 shadow-md ring-2 ring-red-100'
+                  : 'border-gray-200 hover:border-red-300 hover:shadow-sm'
+                : 'border-gray-200 hover:border-primary-300 hover:shadow-md'
             }`}
           >
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                  deleteMode && shopToDelete?._id === shop._id
-                    ? 'bg-red-100'
-                    : 'bg-gradient-to-br from-primary-100 to-primary-50'
-                }`}>
-                  <Store className={`h-5 w-5 ${
+            {/* Card Header */}
+            <div className="p-4 pb-3">
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
                     deleteMode && shopToDelete?._id === shop._id
-                      ? 'text-red-600'
-                      : 'text-primary-600'
-                  }`} />
+                      ? 'bg-red-100'
+                      : 'bg-gradient-to-br from-primary-500 to-primary-600 shadow-sm'
+                  }`}>
+                    <Store className={`h-6 w-6 ${
+                      deleteMode && shopToDelete?._id === shop._id
+                        ? 'text-red-600'
+                        : 'text-white'
+                    }`} />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-gray-900 truncate">{shop.name}</h3>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      shop.status === 'active'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {shop.status === 'active' ? '● Active' : '○ Inactive'}
+                    </span>
+                  </div>
                 </div>
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{shop.name}</h3>
+                {!deleteMode && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit(shop);
+                    }}
+                    className="text-gray-400 hover:text-primary-600 hover:bg-primary-50 p-1.5 rounded-lg transition-all"
+                    title="Edit Shop"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </button>
+                )}
               </div>
-              <span className={`badge flex-shrink-0 ${
-                shop.status === 'active'
-                  ? 'badge-success'
-                  : 'badge-danger'
-              }`}>
-                {shop.status}
-              </span>
-            </div>
-            
-            <div className="space-y-2 mb-4">
-              <div className="flex items-center text-sm text-gray-600">
-                <MapPin className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
-                <span className="line-clamp-1">{shop.location}</span>
-              </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <span className="font-medium text-gray-500 mr-2">Area:</span>
-                <span className="line-clamp-1">{shop.area}</span>
-              </div>
-              <div className="flex items-center text-sm text-gray-600">
-                <Phone className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
-                {shop.contact}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mb-4 p-3 bg-gray-50 rounded-xl">
-              <div className="text-center">
-                <span className="text-xs text-gray-500 block">Sold</span>
-                <span className="text-base sm:text-lg font-bold text-gray-900">{shop.totalSold}</span>
-              </div>
-              <div className="text-center">
-                <span className="text-xs text-gray-500 block">Returned</span>
-                <span className="text-base sm:text-lg font-bold text-emerald-600">{shop.emptyBottlesReturned}</span>
+              
+              {/* Shop Info */}
+              <div className="space-y-1.5">
+                <div className="flex items-center text-sm text-gray-600">
+                  <MapPin className="h-3.5 w-3.5 mr-2 text-gray-400 flex-shrink-0" />
+                  <span className="truncate">{shop.location}</span>
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <span className="text-gray-400 mr-2">Area:</span>
+                  <span className="text-gray-700 font-medium">{shop.area}</span>
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <Phone className="h-3.5 w-3.5 mr-2 text-gray-400 flex-shrink-0" />
+                  <span className="font-medium text-gray-700">{shop.contact}</span>
+                </div>
               </div>
             </div>
 
+            {/* Stats Row */}
+            <div className="px-4 py-3 bg-gray-50 border-y border-gray-100">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <TrendingUp className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 block">Sold</span>
+                    <span className="font-bold text-gray-900">{shop.totalSold || 0}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                    <Recycle className="h-4 w-4 text-emerald-600" />
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 block">Returned</span>
+                    <span className="font-bold text-emerald-600">{shop.emptyBottlesReturned || 0}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
             {!deleteMode && (
-              <div className="flex gap-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEdit(shop);
-                  }}
-                  className="btn btn-secondary btn-xs px-2"
-                  title="Edit"
-                >
-                  <Edit className="h-3 w-3" />
-                </button>
+              <div className="p-3 flex gap-2">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     navigate(`/franchise/update-sales?shopId=${shop._id}`);
                   }}
-                  className="flex-1 btn btn-primary btn-sm"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors"
                 >
-                  <TrendingUp className="h-4 w-4 mr-1" />
+                  <TrendingUp className="h-4 w-4" />
                   Sales
                 </button>
                 <button
@@ -505,9 +555,9 @@ const ShopManagement = () => {
                     e.stopPropagation();
                     navigate(`/franchise/return-bottles?shopId=${shop._id}`);
                   }}
-                  className="flex-1 btn btn-success btn-sm"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors"
                 >
-                  <Recycle className="h-4 w-4 mr-1" />
+                  <Recycle className="h-4 w-4" />
                   Return
                 </button>
               </div>
@@ -516,23 +566,32 @@ const ShopManagement = () => {
         ))}
       </div>
 
+      {/* Empty State */}
       {filteredShops.length === 0 && (
-        <div className="empty-state">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center">
-            <Store className="h-8 w-8 sm:h-10 sm:w-10 text-gray-400" />
+        <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
+          <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center">
+            <Store className="h-10 w-10 text-gray-400" />
           </div>
-          <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">No shops found</h3>
-          <p className="text-gray-500 mb-6 max-w-sm mx-auto text-sm sm:text-base px-4">Get started by adding your first shop to manage inventory and track sales.</p>
-          <button
-            onClick={() => {
-              setSelectedShop(null);
-              setShowForm(true);
-            }}
-            className="btn btn-primary btn-lg"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Add Your First Shop
-          </button>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            {searchQuery || selectedArea ? 'No shops match your search' : 'No shops yet'}
+          </h3>
+          <p className="text-gray-500 mb-6 max-w-sm mx-auto px-4">
+            {searchQuery || selectedArea 
+              ? 'Try adjusting your search or filter to find what you\'re looking for.'
+              : 'Get started by adding your first shop to manage inventory and track sales.'}
+          </p>
+          {!(searchQuery || selectedArea) && (
+            <button
+              onClick={() => {
+                setSelectedShop(null);
+                setShowForm(true);
+              }}
+              className="btn btn-primary px-6 py-3"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Add Your First Shop
+            </button>
+          )}
         </div>
       )}
 
