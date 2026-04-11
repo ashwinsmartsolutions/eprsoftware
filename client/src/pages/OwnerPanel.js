@@ -13,7 +13,9 @@ import {
   BarChart3,
   Menu,
   X,
-  Factory
+  Factory,
+  Clock,
+  RefreshCw
 } from 'lucide-react';
 import { transactionAPI, stockAPI } from '../services/api';
 import FranchiseManagement from '../components/FranchiseManagement';
@@ -194,6 +196,8 @@ const Dashboard = () => {
     totalAllocated: {},
   });
   const [loading, setLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     fetchOverview();
@@ -211,15 +215,18 @@ const Dashboard = () => {
   const fetchOverview = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
+      setIsRefreshing(true);
       const response = await transactionAPI.getOwnerOverview();
       if (response.data.success) {
         setOverview(response.data.overview);
+        setLastUpdated(new Date());
         console.log('[OwnerPanel] Overview updated:', response.data.overview);
       }
     } catch (error) {
       console.error('Error fetching overview:', error);
     } finally {
       if (!silent) setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -265,6 +272,25 @@ const Dashboard = () => {
               System Active
             </span>
           </div>
+        </div>
+        {/* Real-time indicator bar */}
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <Clock className="h-3.5 w-3.5" />
+            <span>
+              {lastUpdated 
+                ? `Last updated: ${lastUpdated.toLocaleTimeString()}` 
+                : 'Loading...'}
+            </span>
+          </div>
+          <button
+            onClick={() => fetchOverview()}
+            disabled={isRefreshing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
         </div>
       </div>
       <h1 className="heading-1 mb-6 sm:mb-8 mt-6">Owner Dashboard</h1>
