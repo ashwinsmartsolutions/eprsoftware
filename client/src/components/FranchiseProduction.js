@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { productionAPI } from '../services/api';
-import { Factory, History, Package, ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
+import { Factory, History, Package, ChevronDown, ChevronUp, Plus, X, Truck, Warehouse } from 'lucide-react';
 
 const FranchiseProduction = () => {
   const [productionHistory, setProductionHistory] = useState([]);
   const [inventory, setInventory] = useState({});
+  const [stats, setStats] = useState({
+    totalProduced: 0,
+    remainingStock: 0,
+    distributedStock: 0
+  });
   const [loading, setLoading] = useState(false);
   const [expandedItems, setExpandedItems] = useState({});
   const [showForm, setShowForm] = useState(false);
@@ -48,10 +53,16 @@ const FranchiseProduction = () => {
 
       if (inventoryRes.data.success) {
         setInventory(inventoryRes.data.inventory);
+        setStats({
+          totalProduced: inventoryRes.data.totalProduced || 0,
+          remainingStock: inventoryRes.data.remainingStock || 0,
+          distributedStock: inventoryRes.data.distributedStock || 0
+        });
       }
       
       console.log('[FranchiseProduction] Data loaded:', {
         inventory: inventoryRes.data?.inventory,
+        stats: inventoryRes.data,
         historyCount: historyRes.data?.productions?.length
       });
     } catch (error) {
@@ -118,8 +129,6 @@ const FranchiseProduction = () => {
     }
   };
 
-  const totalProduced = Object.values(inventory).reduce((sum, val) => sum + val, 0);
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -149,16 +158,47 @@ const FranchiseProduction = () => {
         </div>
       )}
 
-      {/* Total Production Stats */}
-      <div className="card bg-gradient-to-br from-primary-50 to-primary-100">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-sm">
-            <Factory className="h-7 w-7 text-primary-600" />
+      {/* Production Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Total Produced */}
+        <div className="card bg-gradient-to-br from-blue-50 to-blue-100">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center shadow-sm">
+              <Factory className="h-6 w-6 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-gray-600 text-sm font-medium">Total Produced</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalProduced.toLocaleString()}</p>
+              <p className="text-xs text-gray-500">bottles produced</p>
+            </div>
           </div>
-          <div>
-            <p className="text-gray-600 text-sm font-medium">Total Production</p>
-            <p className="text-3xl font-bold text-gray-900">{totalProduced.toLocaleString()}</p>
-            <p className="text-sm text-gray-500">bottles produced across all flavors</p>
+        </div>
+
+        {/* Remaining Stock */}
+        <div className="card bg-gradient-to-br from-emerald-50 to-emerald-100">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center shadow-sm">
+              <Warehouse className="h-6 w-6 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-gray-600 text-sm font-medium">Remaining Stock</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.remainingStock.toLocaleString()}</p>
+              <p className="text-xs text-gray-500">bottles at franchise</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Distributed Stock */}
+        <div className="card bg-gradient-to-br from-amber-50 to-amber-100">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center shadow-sm">
+              <Truck className="h-6 w-6 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-gray-600 text-sm font-medium">Distributed</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.distributedStock.toLocaleString()}</p>
+              <p className="text-xs text-gray-500">bottles to shops</p>
+            </div>
           </div>
         </div>
       </div>

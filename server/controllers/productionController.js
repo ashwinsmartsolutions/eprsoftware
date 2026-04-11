@@ -121,17 +121,56 @@ const getProductionInventory = async (req, res) => {
       });
     }
     
-    // Get franchise stock
     const Franchise = require('../models/Franchise');
+    const Transaction = require('../models/Transaction');
+    
+    // Get franchise current stock (remaining)
     const franchise = await Franchise.findById(franchiseId);
-    const inventory = franchise ? franchise.stock : { orange: 0, blueberry: 0, jira: 0, lemon: 0, mint: 0, guava: 0 };
-
-    const totalProduced = Object.values(inventory).reduce((sum, val) => sum + val, 0);
+    const remainingStock = franchise ? franchise.stock : { orange: 0, blueberry: 0, jira: 0, lemon: 0, mint: 0, guava: 0 };
+    const remainingTotal = Object.values(remainingStock).reduce((sum, val) => sum + val, 0);
+    
+    // Calculate total produced from all production records
+    const productions = await Production.find({ franchiseId });
+    const totalProducedByFlavor = { orange: 0, blueberry: 0, jira: 0, lemon: 0, mint: 0, guava: 0 };
+    let totalProduced = 0;
+    
+    productions.forEach(prod => {
+      Object.keys(prod.stock || {}).forEach(flavor => {
+        const qty = prod.stock[flavor] || 0;
+        totalProducedByFlavor[flavor] += qty;
+        totalProduced += qty;
+      });
+    });
+    
+    // Calculate total distributed (allocated to shops) from transactions
+    const allocations = await Transaction.find({ 
+      franchiseId, 
+      type: 'stock_allocation' 
+    });
+    
+    const distributedByFlavor = { orange: 0, blueberry: 0, jira: 0, lemon: 0, mint: 0, guava: 0 };
+    let totalDistributed = 0;
+    
+    allocations.forEach(alloc => {
+      (alloc.items || []).forEach(item => {
+        const flavor = item.flavor?.toLowerCase();
+        const qty = item.quantity || 0;
+        if (distributedByFlavor.hasOwnProperty(flavor)) {
+          distributedByFlavor[flavor] += qty;
+          totalDistributed += qty;
+        }
+      });
+    });
 
     res.json({
       success: true,
-      inventory,
-      totalProduced
+      inventory: remainingStock,
+      totalProduced,
+      totalProducedByFlavor,
+      remainingStock: remainingTotal,
+      remainingByFlavor: remainingStock,
+      distributedStock: totalDistributed,
+      distributedByFlavor
     });
   } catch (error) {
     console.error('Get production inventory error:', error);
