@@ -198,19 +198,28 @@ const Dashboard = () => {
   useEffect(() => {
     fetchOverview();
     fetchInventory();
+
+    // Poll for real-time updates every 5 seconds
+    const interval = setInterval(() => {
+      fetchOverview(true); // silent mode
+      fetchInventory();
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [location.pathname]);
 
-  const fetchOverview = async () => {
+  const fetchOverview = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const response = await transactionAPI.getOwnerOverview();
       if (response.data.success) {
         setOverview(response.data.overview);
+        console.log('[OwnerPanel] Overview updated:', response.data.overview);
       }
     } catch (error) {
       console.error('Error fetching overview:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -223,6 +232,7 @@ const Dashboard = () => {
           totalProduced: response.data.totalProduced || {},
           totalAllocated: response.data.totalAllocated || {},
         });
+        console.log('[OwnerPanel] Inventory updated:', response.data);
       }
     } catch (error) {
       console.error('Error fetching inventory:', error);
