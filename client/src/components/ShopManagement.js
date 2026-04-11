@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { shopAPI } from '../services/api';
-import { Plus, Edit, Trash2, X, MapPin, Phone, Store, Recycle, TrendingUp, Search, Filter, MoreVertical } from 'lucide-react';
+import { Plus, Edit, Trash2, X, MapPin, Phone, Store, Recycle, TrendingUp, Search, Filter, ChevronDown } from 'lucide-react';
 
 const ShopForm = ({ shop, areas, onClose, onSubmit, onAddArea, viewMode }) => {
   const [formData, setFormData] = useState({
