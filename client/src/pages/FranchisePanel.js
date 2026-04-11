@@ -9,6 +9,7 @@ import {
   Home,
   Menu,
   X,
+  TrendingUp,
   Recycle,
   Truck,
   Factory
