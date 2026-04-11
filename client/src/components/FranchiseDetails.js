@@ -16,7 +16,8 @@ import {
   ChevronDown,
   ChevronUp,
   RefreshCw,
-  Radio
+  Radio,
+  Factory
 } from 'lucide-react';
 
 const FranchiseDetails = () => {
@@ -28,22 +29,26 @@ const FranchiseDetails = () => {
   const [expandedSections, setExpandedSections] = useState({
     shops: true,
     sales: true,
-    returns: true
+    returns: true,
+    production: true
   });
   const [lastUpdated, setLastUpdated] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [liveMode, setLiveMode] = useState(true);
   const [changedValues, setChangedValues] = useState(new Set());
+  const [productionData, setProductionData] = useState(null);
   const prevDetailsRef = useRef(null);
 
   useEffect(() => {
     fetchFranchiseDetails();
+    fetchProductionData();
     
     // Set up real-time polling every 5 seconds when live mode is on
     let intervalId;
     if (liveMode) {
       intervalId = setInterval(() => {
         fetchFranchiseDetails(true); // silent refresh (no loading spinner)
+        fetchProductionData(true); // silent refresh for production data
       }, 5000);
     }
     
@@ -128,6 +133,19 @@ const FranchiseDetails = () => {
   const handleManualRefresh = () => {
     console.log('[FranchiseDetails] Manual refresh triggered for franchise:', id);
     fetchFranchiseDetails(true);
+    fetchProductionData(true);
+  };
+
+  const fetchProductionData = async (silent = false) => {
+    try {
+      const response = await franchiseAPI.getProduction(id);
+      if (response.data.success) {
+        setProductionData(response.data.production);
+        console.log('[FranchiseDetails] Production data loaded:', response.data.production);
+      }
+    } catch (err) {
+      console.error('Error fetching production data:', err);
+    }
   };
 
   const toggleLiveMode = () => {
@@ -418,6 +436,113 @@ const FranchiseDetails = () => {
           })}
         </div>
       </div>
+
+      {/* Stock Produced by Franchise */}
+      {productionData && productionData.totalProduced > 0 && (
+        <div className="card mb-6">
+          <div 
+            className="flex items-center justify-between cursor-pointer"
+            onClick={() => toggleSection('production')}
+          >
+            <h3 className="heading-3 flex items-center gap-2">
+              <Factory className="h-5 w-5" />
+              Stock Produced by Franchise
+              <span className="text-sm font-normal text-gray-500 ml-2">
+                ({productionData.totalProduced.toLocaleString()} bottles total)
+              </span>
+            </h3>
+            <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+              {expandedSections.production ? (
+                <ChevronUp className="h-5 w-5 text-gray-500" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-gray-500" />
+              )}
+            </button>
+          </div>
+          
+          {expandedSections.production && (
+            <div className="mt-4">
+              {/* Production Stats Grid */}
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="bg-blue-50 rounded-xl p-4 text-center">
+                  <p className="text-sm text-gray-600 mb-1">Total Produced</p>
+                  <p className="text-2xl font-bold text-blue-700">{productionData.totalProduced.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">bottles</p>
+                </div>
+                <div className="bg-amber-50 rounded-xl p-4 text-center">
+                  <p className="text-sm text-gray-600 mb-1">Distributed to Shops</p>
+                  <p className="text-2xl font-bold text-amber-700">{productionData.totalDistributed.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">bottles</p>
+                </div>
+                <div className="bg-emerald-50 rounded-xl p-4 text-center">
+                  <p className="text-sm text-gray-600 mb-1">Remaining at Franchise</p>
+                  <p className="text-2xl font-bold text-emerald-700">{productionData.totalRemaining.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">bottles</p>
+                </div>
+              </div>
+              
+              {/* Production by Flavor */}
+              <h4 className="font-medium text-gray-700 mb-3">Production by Flavor</h4>
+              <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4 mb-6">
+                {flavors.map((flavor) => {
+                  const producedQty = productionData.totalProducedByFlavor[flavor.key] || 0;
+                  return (
+                    <div key={flavor.key} className="rounded-lg sm:rounded-xl p-2 sm:p-3 text-center border bg-gradient-to-br from-blue-50 to-blue-100 border-blue-100">
+                      <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${flavor.color} mx-auto mb-1 sm:mb-2 shadow-sm`}></div>
+                      <p className="text-xs sm:text-sm font-medium text-gray-600">{flavor.label}</p>
+                      <p className="text-base sm:text-xl font-bold text-gray-900">{producedQty.toLocaleString()}</p>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Recent Production Records */}
+              {productionData.recentProductions && productionData.recentProductions.length > 0 && (
+                <div>
+                  <h4 className="font-medium text-gray-700 mb-3">Recent Production Records</h4>
+                  <div className="space-y-2">
+                    {productionData.recentProductions.slice(0, 5).map((prod) => {
+                      const totalQty = Object.values(prod.stock || {}).reduce((a, b) => a + b, 0);
+                      return (
+                        <div key={prod._id} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-gray-900">
+                              <Factory className="h-4 w-4 inline mr-1 text-blue-600" />
+                              {totalQty.toLocaleString()} bottles
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {new Date(prod.createdAt).toLocaleDateString('en-IN', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {flavors.map((flavor) => {
+                              const qty = prod.stock?.[flavor.key] || 0;
+                              if (qty === 0) return null;
+                              return (
+                                <span key={flavor.key} className="inline-flex items-center gap-1 text-xs bg-white px-2 py-1 rounded border border-gray-200">
+                                  <span className={`w-2 h-2 rounded-full ${flavor.color}`}></span>
+                                  <span className="capitalize">{flavor.label}:</span>
+                                  <span className="font-bold">{qty}</span>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Shops Section */}
       <div className="card mb-6">

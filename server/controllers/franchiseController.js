@@ -326,6 +326,93 @@ const getFranchiseAllocations = async (req, res) => {
   }
 };
 
+// @desc    Get franchise production data (Owner only)
+// @route   GET /api/franchises/:id/production
+// @access  Private (Owner only)
+const getFranchiseProduction = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const Production = require('../models/Production');
+    const Transaction = require('../models/Transaction');
+    
+    // Verify franchise exists
+    const franchise = await Franchise.findById(id).lean();
+    if (!franchise) {
+      return res.status(404).json({ message: 'Franchise not found' });
+    }
+    
+    // Get all production records for this franchise
+    const productions = await Production.find({ franchiseId: id })
+      .sort({ createdAt: -1 })
+      .lean();
+    
+    // Calculate total produced by flavor
+    const totalProducedByFlavor = { orange: 0, blueberry: 0, jira: 0, lemon: 0, mint: 0, guava: 0 };
+    let totalProduced = 0;
+    
+    productions.forEach(prod => {
+      Object.keys(prod.stock || {}).forEach(flavor => {
+        const qty = prod.stock[flavor] || 0;
+        totalProducedByFlavor[flavor] += qty;
+        totalProduced += qty;
+      });
+    });
+    
+    // Calculate distributed (allocated to shops)
+    const Shop = require('../models/Shop');
+    const shops = await Shop.find({ franchiseId: id }).lean();
+    const shopIds = shops.map(s => s._id.toString());
+    
+    const allocations = await Transaction.find({
+      shopId: { $in: shopIds },
+      type: 'stock_allocation'
+    }).lean();
+    
+    const distributedByFlavor = { orange: 0, blueberry: 0, jira: 0, lemon: 0, mint: 0, guava: 0 };
+    let totalDistributed = 0;
+    
+    allocations.forEach(alloc => {
+      (alloc.items || []).forEach(item => {
+        const flavor = item.flavor?.toLowerCase();
+        const qty = item.quantity || 0;
+        if (distributedByFlavor.hasOwnProperty(flavor)) {
+          distributedByFlavor[flavor] += qty;
+          totalDistributed += qty;
+        }
+      });
+    });
+    
+    // Calculate remaining stock at franchise
+    const remainingByFlavor = {};
+    const flavors = ['orange', 'blueberry', 'jira', 'lemon', 'mint', 'guava'];
+    flavors.forEach(flavor => {
+      remainingByFlavor[flavor] = Math.max(0, (totalProducedByFlavor[flavor] || 0) - (distributedByFlavor[flavor] || 0));
+    });
+    const totalRemaining = Object.values(remainingByFlavor).reduce((sum, val) => sum + val, 0);
+    
+    console.log(`[FranchiseProduction] Franchise: ${franchise.name}`);
+    console.log(`[FranchiseProduction] Total Produced:`, totalProducedByFlavor);
+    console.log(`[FranchiseProduction] Remaining Stock:`, remainingByFlavor);
+    
+    res.json({
+      success: true,
+      production: {
+        totalProduced,
+        totalProducedByFlavor,
+        totalDistributed,
+        distributedByFlavor,
+        totalRemaining,
+        remainingByFlavor,
+        productionCount: productions.length,
+        recentProductions: productions.slice(0, 10)
+      }
+    });
+  } catch (error) {
+    console.error('Get franchise production error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   getFranchises,
   getFranchise,
@@ -333,5 +420,6 @@ module.exports = {
   updateFranchise,
   deleteFranchise,
   getFranchiseAnalytics,
-  getFranchiseAllocations
+  getFranchiseAllocations,
+  getFranchiseProduction
 };

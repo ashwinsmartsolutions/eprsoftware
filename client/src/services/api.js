@@ -48,6 +48,7 @@ export const franchiseAPI = {
   delete: (id) => api.delete(`/franchises/${id}`),
   getAnalytics: () => api.get('/franchises/analytics'),
   getAllocationHistory: (franchiseId) => api.get(`/franchises/${franchiseId}/allocations`),
+  getProduction: (franchiseId) => api.get(`/franchises/${franchiseId}/production`),
 };
 
 export const shopAPI = {

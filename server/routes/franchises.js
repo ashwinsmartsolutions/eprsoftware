@@ -8,7 +8,8 @@ const {
   updateFranchise,
   deleteFranchise,
   getFranchiseAnalytics,
-  getFranchiseAllocations
+  getFranchiseAllocations,
+  getFranchiseProduction
 } = require('../controllers/franchiseController');
 
 const router = express.Router();
@@ -33,5 +34,8 @@ router.delete('/:id', auth, ownerAuth, mongoIdParamRules('id'), deleteFranchise)
 
 // Get franchise allocation history (Franchise or Owner)
 router.get('/:id/allocations', auth, franchiseAuth, mongoIdParamRules('id'), getFranchiseAllocations);
+
+// Get franchise production data (Owner only)
+router.get('/:id/production', auth, ownerAuth, mongoIdParamRules('id'), getFranchiseProduction);
 
 module.exports = router;
