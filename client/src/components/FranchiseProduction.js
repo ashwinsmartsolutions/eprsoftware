@@ -330,14 +330,19 @@ const FranchiseProduction = () => {
                       <Factory className="h-5 w-5 text-primary-600" />
                       <div className="text-left">
                         <p className="font-medium text-gray-900">
-                          {new Date(production.date).toLocaleDateString('en-US', {
+                          New Production: {totalQty} bottles
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {new Date(production.createdAt || production.date).toLocaleDateString('en-US', {
                             weekday: 'short',
                             year: 'numeric',
                             month: 'short',
                             day: 'numeric'
+                          })} at {new Date(production.createdAt || production.date).toLocaleTimeString('en-US', {
+                            hour: '2-digit',
+                            minute: '2-digit'
                           })}
                         </p>
-                        <p className="text-sm text-gray-500">{totalQty} bottles produced</p>
                       </div>
                     </div>
                     {isExpanded ? (
@@ -349,7 +354,7 @@ const FranchiseProduction = () => {
                   
                   {isExpanded && (
                     <div className="px-4 py-3 bg-white">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <div className="flex flex-wrap gap-x-4 gap-y-2">
                         {flavors.map((flavor) => {
                           const qty = production.stock?.[flavor.key] || 0;
                           if (qty === 0) return null;
