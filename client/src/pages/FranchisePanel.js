@@ -5,12 +5,10 @@ import {
   Package, 
   Store, 
   LogOut, 
-  Plus,
   ChevronRight,
   Home,
   Menu,
   X,
-  TrendingUp,
   Recycle,
   Truck,
   Factory
@@ -162,32 +160,6 @@ const Dashboard = () => {
       <h1 className="heading-1 mb-6 sm:mb-8 mt-6">Franchise Dashboard</h1>
       <FranchiseOverview overview={overview} />
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mt-6 sm:mt-8">
-        <div className="card">
-          <h2 className="heading-3 mb-4">Quick Actions</h2>
-          <div className="space-y-3">
-            <Link
-              to="/franchise/shops"
-              className="btn btn-primary w-full"
-            >
-              <Plus className="h-5 w-5" />
-              <span>Add New Shop</span>
-            </Link>
-            <Link
-              to="/franchise/update-sales"
-              className="btn btn-secondary w-full"
-            >
-              <TrendingUp className="h-5 w-5" />
-              <span>Update Sales</span>
-            </Link>
-          </div>
-        </div>
-        
-        <div className="card">
-          <h2 className="heading-3 mb-4">Recent Activity</h2>
-          <p className="text-body">Your recent transactions and updates will appear here.</p>
-        </div>
-      </div>
     </div>
   );
 };
