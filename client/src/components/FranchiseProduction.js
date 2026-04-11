@@ -353,24 +353,26 @@ const FranchiseProduction = () => {
                   </button>
                   
                   {isExpanded && (
-                    <div className="px-4 py-3 bg-white">
-                      <div className="flex flex-wrap gap-x-4 gap-y-2">
+                    <div className="px-4 py-4 bg-white">
+                      <div className="flex flex-wrap gap-3">
                         {flavors.map((flavor) => {
                           const qty = production.stock?.[flavor.key] || 0;
                           if (qty === 0) return null;
                           return (
-                            <div key={flavor.key} className="flex items-center gap-2">
+                            <div key={flavor.key} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
                               <div className={`w-3 h-3 rounded-full ${flavor.color}`}></div>
                               <span className="text-sm text-gray-600">{flavor.label}:</span>
-                              <span className="font-medium">{qty}</span>
+                              <span className="font-semibold text-gray-900">{qty}</span>
                             </div>
                           );
                         })}
                       </div>
                       {production.notes && (
-                        <p className="mt-3 text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                          <span className="font-medium">Notes:</span> {production.notes}
-                        </p>
+                        <div className="mt-4 pt-3 border-t border-gray-100">
+                          <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                            <span className="font-medium text-gray-700">Notes:</span> {production.notes}
+                          </p>
+                        </div>
                       )}
                     </div>
                   )}
