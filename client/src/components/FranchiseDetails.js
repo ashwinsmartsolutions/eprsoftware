@@ -497,11 +497,40 @@ const FranchiseDetails = () => {
         <div className="mb-6">
           <h4 className="text-sm font-medium text-gray-600 mb-3 flex items-center gap-2">
             <Package className="h-4 w-4" />
-            Current Stock
+            Current Stock (Remaining at Franchise)
             {filteredData && (
               <span className="text-xs font-normal text-gray-400">(up to selected date)</span>
             )}
           </h4>
+          
+          {/* Stock Summary Stats */}
+          {!filteredData && stats && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className="bg-blue-50 rounded-lg p-3 text-center">
+                <p className="text-xs text-gray-500 mb-1">From Owner</p>
+                <p className="text-lg font-bold text-blue-700">{(stats.totalStockAllocated || 0).toLocaleString()}</p>
+                <p className="text-xs text-gray-400">bottles</p>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-3 text-center">
+                <p className="text-xs text-gray-500 mb-1">Franchise Production</p>
+                <p className="text-lg font-bold text-purple-700">{(stats.totalProducedByFranchise || 0).toLocaleString()}</p>
+                <p className="text-xs text-gray-400">bottles</p>
+              </div>
+              <div className="bg-amber-50 rounded-lg p-3 text-center">
+                <p className="text-xs text-gray-500 mb-1">Distributed to Shops</p>
+                <p className="text-lg font-bold text-amber-700">
+                  {(Object.values(stats.allocatedToShopsByFlavor || {}).reduce((a, b) => a + b, 0)).toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-400">bottles</p>
+              </div>
+              <div className="bg-emerald-50 rounded-lg p-3 text-center border-2 border-emerald-200">
+                <p className="text-xs text-gray-500 mb-1">Remaining Stock</p>
+                <p className="text-lg font-bold text-emerald-700">{(stats.totalCurrentStock || 0).toLocaleString()}</p>
+                <p className="text-xs text-gray-400">bottles</p>
+              </div>
+            </div>
+          )}
+          
           <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
             {flavors.map((flavor) => {
               const stockQty = filteredData 
@@ -509,10 +538,10 @@ const FranchiseDetails = () => {
                 : (stats.currentStock[flavor.key] || 0);
               const changed = isValueChanged(`stock-${flavor.key}`);
               return (
-                <div key={flavor.key} className={`rounded-lg sm:rounded-xl p-2 sm:p-3 text-center border transition-all duration-300 ${changed ? 'bg-gradient-to-br from-blue-100 to-blue-200 border-blue-300 ring-2 ring-blue-400 scale-105 shadow-lg' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-100'}`}>
+                <div key={flavor.key} className={`rounded-lg sm:rounded-xl p-2 sm:p-3 text-center border transition-all duration-300 ${changed ? 'bg-gradient-to-br from-emerald-100 to-emerald-200 border-emerald-300 ring-2 ring-emerald-400 scale-105 shadow-lg' : 'bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-100'}`}>
                   <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${flavor.color} mx-auto mb-1 sm:mb-2 shadow-sm ${changed ? 'scale-125' : ''} transition-transform duration-300`}></div>
                   <p className="text-xs sm:text-sm font-medium text-gray-600">{flavor.label}</p>
-                  <p className={`text-base sm:text-xl font-bold transition-colors duration-300 ${changed ? 'text-blue-600' : 'text-gray-900'}`}>{stockQty.toLocaleString()}</p>
+                  <p className={`text-base sm:text-xl font-bold transition-colors duration-300 ${changed ? 'text-emerald-600' : 'text-gray-900'}`}>{stockQty.toLocaleString()}</p>
                 </div>
               );
             })}

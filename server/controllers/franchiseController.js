@@ -159,20 +159,49 @@ const getFranchiseDetails = async (req, res) => {
       });
     });
 
-    // Calculate REAL current stock at FRANCHISE level (owner allocated - allocated to shops)
+    // Get franchise production records
+    const Production = require('../models/Production');
+    const productionRecords = await Production.find({ franchiseId: id }).lean();
+    
+    // Calculate total produced by franchise by flavor
+    const producedByFranchise = {};
+    productionRecords.forEach(prod => {
+      Object.keys(prod.stock || {}).forEach(flavor => {
+        const qty = prod.stock[flavor] || 0;
+        producedByFranchise[flavor] = (producedByFranchise[flavor] || 0) + qty;
+      });
+    });
+    const totalProducedByFranchise = Object.values(producedByFranchise).reduce((sum, val) => sum + val, 0);
+
+    // Calculate REAL current stock at FRANCHISE level
+    // Formula: (Owner Allocations + Franchise Production) - Allocated to Shops
     const currentStock = {};
+    const totalReceived = {};
     const flavors = ['orange', 'blueberry', 'jira', 'lemon', 'mint', 'guava'];
+    
     flavors.forEach(flavor => {
       const allocatedByOwner = totalStockAllocatedByOwner[flavor] || 0;
+      const producedByFranchiseFlavor = producedByFranchise[flavor] || 0;
       const allocatedToShops = allocatedToShopsByFlavor[flavor] || 0;
-      currentStock[flavor] = Math.max(0, allocatedByOwner - allocatedToShops);
+      
+      // Total received by franchise (from owner + self production)
+      totalReceived[flavor] = allocatedByOwner + producedByFranchiseFlavor;
+      
+      // Remaining stock at franchise
+      currentStock[flavor] = Math.max(0, totalReceived[flavor] - allocatedToShops);
     });
+    
+    const totalCurrentStock = Object.values(currentStock).reduce((sum, val) => sum + val, 0);
+    const totalReceivedAll = Object.values(totalReceived).reduce((sum, val) => sum + val, 0);
 
     console.log(`[FranchiseDetails] Franchise: ${franchise.name}`);
     console.log(`[FranchiseDetails] Shops: ${shops.length}, Sales: ${totalSales}, Returns: ${totalReturns}`);
     console.log(`[FranchiseDetails] Owner allocated:`, totalStockAllocatedByOwner);
+    console.log(`[FranchiseDetails] Franchise produced:`, producedByFranchise);
+    console.log(`[FranchiseDetails] Total received:`, totalReceived);
     console.log(`[FranchiseDetails] Allocated to shops:`, allocatedToShopsByFlavor);
     console.log(`[FranchiseDetails] Current stock at franchise:`, currentStock);
+    console.log(`[FranchiseDetails] Total current stock:`, totalCurrentStock);
 
     res.json({
       success: true,
@@ -191,10 +220,15 @@ const getFranchiseDetails = async (req, res) => {
           totalSales,
           totalReturns,
           totalStockAllocated,
+          totalProducedByFranchise,
+          totalCurrentStock,
+          totalReceivedAll,
           salesByFlavor,
           returnsByFlavor,
           currentStock: currentStock,
           allocatedToShopsByFlavor: allocatedToShopsByFlavor,
+          producedByFranchise: producedByFranchise,
+          totalReceivedByFlavor: totalReceived,
           franchiseStock: franchise.stock || {}
         },
         recentSales: salesTransactions.slice(0, 10),
