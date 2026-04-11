@@ -6,6 +6,16 @@ const productionSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  franchiseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Franchise',
+    default: null
+  },
+  recordedBy: {
+    type: String,
+    enum: ['owner', 'franchise'],
+    default: 'owner'
+  },
   date: {
     type: Date,
     default: Date.now
@@ -55,6 +65,7 @@ productionSchema.pre('save', function(next) {
 
 // Add indexes for better query performance
 productionSchema.index({ owner: 1, createdAt: -1 });
+productionSchema.index({ franchiseId: 1, createdAt: -1 });
 productionSchema.index({ date: -1 });
 
 module.exports = mongoose.model('Production', productionSchema);

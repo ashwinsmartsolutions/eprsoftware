@@ -12,7 +12,9 @@ import {
   X,
   TrendingUp,
   Recycle,
-  Truck
+  Truck,
+  Factory,
+  Boxes
 } from 'lucide-react';
 import { transactionAPI } from '../services/api';
 import ShopManagement from '../components/ShopManagement';
@@ -20,6 +22,8 @@ import UpdateSales from '../components/UpdateSales';
 import ReturnBottles from '../components/ReturnBottles';
 import FranchiseOverview from '../components/FranchiseOverview';
 import DistributeStock from '../components/DistributeStock';
+import FranchiseProduction from '../components/FranchiseProduction';
+import FranchiseStockAllocation from '../components/FranchiseStockAllocation';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const location = useLocation();
@@ -27,6 +31,8 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
   const menuItems = [
     { path: '/franchise/dashboard', icon: Home, label: 'Dashboard' },
+    { path: '/franchise/production', icon: Factory, label: 'Production' },
+    { path: '/franchise/stock-allocation', icon: Boxes, label: 'Stock Allocation' },
     { path: '/franchise/shops', icon: Store, label: 'Shop Management' },
     { path: '/franchise/distribute-stock', icon: Truck, label: 'Distribute Stock' },
     { path: '/franchise/update-sales', icon: TrendingUp, label: 'Update Sales' },
@@ -219,6 +225,8 @@ const FranchisePanel = () => {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/production" element={<FranchiseProduction />} />
+            <Route path="/stock-allocation" element={<FranchiseStockAllocation />} />
             <Route path="/shops" element={<ShopManagement />} />
             <Route path="/distribute-stock" element={<DistributeStock />} />
             <Route path="/update-sales" element={<UpdateSales />} />

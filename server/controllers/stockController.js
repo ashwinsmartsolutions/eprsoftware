@@ -274,37 +274,33 @@ const getShopStock = async (req, res) => {
   }
 };
 
-// @desc    Get owner available stock
+// @desc    Get owner available stock (now aggregates all franchise production)
 // @route   GET /api/stock/owner-inventory
 // @access  Private (Owner only)
 const getOwnerInventory = async (req, res) => {
   try {
-    let inventory = await OwnerInventory.findOne({ owner: req.user.id });
+    // Get all franchises' stock
+    const franchises = await Franchise.find();
     
-    if (!inventory) {
-      inventory = new OwnerInventory({
-        owner: req.user.id,
-        totalProduced: { orange: 0, blueberry: 0, jira: 0, lemon: 0, mint: 0, guava: 0 },
-        totalAllocated: { orange: 0, blueberry: 0, jira: 0, lemon: 0, mint: 0, guava: 0 }
-      });
-      await inventory.save();
-    }
-
-    // Recalculate available in real-time (in case pre-save hook values are stale)
+    // Aggregate production from all franchises
     const flavors = ['orange', 'blueberry', 'jira', 'lemon', 'mint', 'guava'];
+    const totalProduced = {};
+    const totalAllocated = {};
     const available = {};
+    
     flavors.forEach(flavor => {
-      const produced = inventory.totalProduced[flavor] || 0;
-      const allocated = inventory.totalAllocated[flavor] || 0;
-      available[flavor] = Math.max(0, produced - allocated);
+      totalProduced[flavor] = franchises.reduce((sum, f) => sum + (f.stock?.[flavor] || 0), 0);
+      totalAllocated[flavor] = 0; // Will track later if needed
+      available[flavor] = totalProduced[flavor];
     });
 
     res.json({
       success: true,
-      totalProduced: inventory.totalProduced,
-      totalAllocated: inventory.totalAllocated,
-      available: available,
-      totalAvailable: Object.values(available).reduce((sum, val) => sum + val, 0)
+      totalProduced,
+      totalAllocated,
+      available,
+      totalAvailable: Object.values(available).reduce((sum, val) => sum + val, 0),
+      franchiseCount: franchises.length
     });
   } catch (error) {
     console.error(error);

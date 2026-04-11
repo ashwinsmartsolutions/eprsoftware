@@ -19,8 +19,6 @@ import {
 } from 'lucide-react';
 import { transactionAPI, stockAPI } from '../services/api';
 import FranchiseManagement from '../components/FranchiseManagement';
-import StockAllocation from '../components/StockAllocation';
-import OwnerProduction from '../components/OwnerProduction';
 import FranchiseDetails from '../components/FranchiseDetails';
 
 // Coming Soon component
@@ -41,9 +39,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
   const menuItems = [
     { path: '/owner/dashboard', icon: Home, label: 'Dashboard' },
-    { path: '/owner/production', icon: Factory, label: 'Production' },
     { path: '/owner/franchises', icon: Users, label: 'Franchises' },
-    { path: '/owner/stock-allocation', icon: Package, label: 'Stock Allocation' },
     { path: '/owner/analytics', icon: BarChart3, label: 'Analytics' },
   ];
 
@@ -397,10 +393,8 @@ const OwnerPanel = () => {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/production" element={<OwnerProduction />} />
             <Route path="/franchises" element={<FranchiseManagement />} />
             <Route path="/franchises/:id" element={<FranchiseDetails />} />
-            <Route path="/stock-allocation" element={<StockAllocation />} />
             <Route path="/analytics" element={<ComingSoon />} />
           </Routes>
         </div>

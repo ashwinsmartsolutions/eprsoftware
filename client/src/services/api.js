@@ -47,6 +47,7 @@ export const franchiseAPI = {
   update: (id, data) => api.put(`/franchises/${id}`, data),
   delete: (id) => api.delete(`/franchises/${id}`),
   getAnalytics: () => api.get('/franchises/analytics'),
+  getAllocationHistory: (franchiseId) => api.get(`/franchises/${franchiseId}/allocations`),
 };
 
 export const shopAPI = {
@@ -76,9 +77,9 @@ export const transactionAPI = {
 };
 
 export const productionAPI = {
-  record: (data) => api.post('/production', data),
-  getHistory: () => api.get('/production'),
-  getInventory: () => api.get('/production/inventory'),
+  record: (data) => api.post('/franchise-production/record', data),
+  getHistory: () => api.get('/franchise-production/history'),
+  getInventory: () => api.get('/franchise-production/inventory'),
 };
 
 export default api;

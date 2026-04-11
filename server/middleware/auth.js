@@ -24,6 +24,7 @@ const auth = async (req, res, next) => {
 };
 
 const ownerAuth = (req, res, next) => {
+  console.log('[ownerAuth] Checking role:', req.user?.role);
   if (req.user.role !== 'owner') {
     return res.status(403).json({ message: 'Access denied. Owner role required.' });
   }
@@ -31,10 +32,18 @@ const ownerAuth = (req, res, next) => {
 };
 
 const franchiseAuth = (req, res, next) => {
+  console.log('[franchiseAuth] Checking role:', req.user?.role);
   if (req.user.role !== 'franchise') {
     return res.status(403).json({ message: 'Access denied. Franchise role required.' });
   }
   next();
 };
 
-module.exports = { auth, ownerAuth, franchiseAuth };
+const franchiseOrOwnerAuth = (req, res, next) => {
+  if (req.user.role !== 'franchise' && req.user.role !== 'owner') {
+    return res.status(403).json({ message: 'Access denied. Franchise or Owner role required.' });
+  }
+  next();
+};
+
+module.exports = { auth, ownerAuth, franchiseAuth, franchiseOrOwnerAuth };

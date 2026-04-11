@@ -292,23 +292,19 @@ const getOwnerOverview = async (req, res) => {
     console.log('=== getOwnerOverview called by user:', req.user?.username, 'role:', req.user?.role);
     
     const franchises = await Franchise.find();
-    const Production = require('../models/Production');
     
     console.log('Found franchises:', franchises.length);
     
     const totalFranchises = franchises.length;
     
-    // Calculate total produced from production records
-    const productions = await Production.find();
-    console.log('Found productions:', productions.length);
-    
-    const totalProduced = {};
+    // Calculate total produced from all franchise stock (franchises now handle production)
     const flavors = ['orange', 'blueberry', 'jira', 'lemon', 'mint', 'guava'];
+    const totalProduced = {};
     flavors.forEach(flavor => {
-      totalProduced[flavor] = productions.reduce((sum, p) => sum + ((p.quantity && p.quantity[flavor]) || 0), 0);
+      totalProduced[flavor] = franchises.reduce((sum, f) => sum + (f.stock?.[flavor] || 0), 0);
     });
     const totalProducedCount = Object.values(totalProduced).reduce((a, b) => a + b, 0);
-    console.log('Total produced:', totalProducedCount, 'by flavor:', totalProduced);
+    console.log('Total produced (from franchises):', totalProducedCount, 'by flavor:', totalProduced);
     
     // Calculate total allocated to franchises (owner -> franchise allocations)
     const allocationTransactions = await Transaction.find({

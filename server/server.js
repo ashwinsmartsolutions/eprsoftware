@@ -1,3 +1,16 @@
+// CACHE BUSTER - Force reload of modified modules
+const cacheBuster = Date.now();
+console.log('[Server] Cache buster:', cacheBuster);
+
+// Clear require cache for our route files to ensure fresh code
+['./routes/production', './middleware/auth'].forEach(module => {
+  const key = require.resolve(module);
+  if (require.cache[key]) {
+    delete require.cache[key];
+    console.log('[Server] Cleared cache for:', module);
+  }
+});
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -50,8 +63,12 @@ app.use('/api/shops', require('./routes/shops'));
 app.use('/api/stock', require('./routes/stock'));
 app.use('/api/transactions', require('./routes/transactions'));
 app.use('/api/production', require('./routes/production'));
+app.use('/api/franchise-production', require('./routes/franchiseProduction'));
 
 const PORT = process.env.PORT || 5000;
+
+// FORCE RELOAD - Clear any require cache issues
+console.log('[Server] Starting with updated routes - v2');
 
 // Connect to MongoDB with Atlas-compatible options
 mongoose.connect(process.env.MONGODB_URI, {

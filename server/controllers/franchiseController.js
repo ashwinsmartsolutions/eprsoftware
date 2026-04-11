@@ -301,11 +301,37 @@ const getFranchiseAnalytics = async (req, res) => {
   }
 };
 
+// @desc    Get franchise allocation history
+// @route   GET /api/franchises/:id/allocations
+// @access  Private (Franchise owner or Owner)
+const getFranchiseAllocations = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const Transaction = require('../models/Transaction');
+    
+    // Get all allocation transactions for this franchise
+    const allocations = await Transaction.find({
+      franchiseId: id,
+      type: 'stock_allocation',
+      shopId: null // Only owner-to-franchise allocations
+    }).sort({ createdAt: -1 }).lean();
+    
+    res.json({
+      success: true,
+      allocations
+    });
+  } catch (error) {
+    console.error('Get franchise allocations error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   getFranchises,
   getFranchise,
   getFranchiseDetails,
   updateFranchise,
   deleteFranchise,
-  getFranchiseAnalytics
+  getFranchiseAnalytics,
+  getFranchiseAllocations
 };
