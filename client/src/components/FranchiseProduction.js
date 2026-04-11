@@ -169,12 +169,12 @@ const FranchiseProduction = () => {
           <Package className="h-5 w-5" />
           Production by Flavor
         </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {flavors.map((flavor) => (
-            <div key={flavor.key} className="rounded-xl p-4 text-center bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-100">
-              <div className={`w-4 h-4 rounded-full ${flavor.color} mx-auto mb-2`}></div>
+            <div key={flavor.key} className="rounded-xl p-3 text-center bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-100">
+              <div className={`w-3 h-3 rounded-full ${flavor.color} mx-auto mb-1`}></div>
               <p className="text-sm font-medium text-gray-600">{flavor.label}</p>
-              <p className="text-xl font-bold text-gray-900">{inventory[flavor.key] || 0}</p>
+              <p className="text-lg font-bold text-gray-900">{inventory[flavor.key] || 0}</p>
               <p className="text-xs text-gray-500">bottles</p>
             </div>
           ))}
