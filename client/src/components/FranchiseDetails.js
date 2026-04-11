@@ -182,10 +182,9 @@ const FranchiseDetails = () => {
       return retDate >= selectedDate && retDate < nextDay;
     });
     
-    // Calculate filtered stats by flavor
+    // Calculate filtered stats by flavor (only sales and returns, stock always shows actual remaining)
     const filteredSalesByFlavor = {};
     const filteredReturnsByFlavor = {};
-    const filteredStockByFlavor = {};
     
     flavors.forEach(flavor => {
       // Sales for this flavor on selected date
@@ -202,23 +201,10 @@ const FranchiseDetails = () => {
           .reduce((s, item) => s + (item.quantity || 0), 0);
       }, 0);
       
-      // Stock is cumulative up to selected date
-      // Calculate stock from allocations up to selected date minus sales up to selected date
-      const allocationsUpToDate = (details.stats.allocatedToShopsByFlavor?.[flavor.key] || 0);
-      const salesUpToDate = details.recentSales
-        .filter(sale => new Date(sale.createdAt) < nextDay)
-        .reduce((sum, sale) => {
-          const items = sale.items || [];
-          return sum + items.filter(item => item.flavor?.toLowerCase() === flavor.key)
-            .reduce((s, item) => s + (item.quantity || 0), 0);
-        }, 0);
-      
-      filteredStockByFlavor[flavor.key] = Math.max(0, allocationsUpToDate - salesUpToDate);
     });
     
     setFilteredData({
       date: date,
-      stock: filteredStockByFlavor,
       sales: filteredSalesByFlavor,
       returns: filteredReturnsByFlavor,
       totalSales: Object.values(filteredSalesByFlavor).reduce((a, b) => a + b, 0),
@@ -501,16 +487,11 @@ const FranchiseDetails = () => {
           <h4 className="text-sm font-medium text-gray-600 mb-3 flex items-center gap-2">
             <Package className="h-4 w-4" />
             Current Stock (Remaining)
-            {filteredData && (
-              <span className="text-xs font-normal text-gray-400">(up to selected date)</span>
-            )}
           </h4>
           
           <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
             {flavors.map((flavor) => {
-              const stockQty = filteredData 
-                ? (filteredData.stock[flavor.key] || 0)
-                : (stats.currentStock[flavor.key] || 0);
+              const stockQty = stats.currentStock[flavor.key] || 0;
               const changed = isValueChanged(`stock-${flavor.key}`);
               return (
                 <div key={flavor.key} className={`rounded-lg sm:rounded-xl p-2 sm:p-3 text-center border transition-all duration-300 ${changed ? 'bg-gradient-to-br from-emerald-100 to-emerald-200 border-emerald-300 ring-2 ring-emerald-400 scale-105 shadow-lg' : 'bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-100'}`}>
