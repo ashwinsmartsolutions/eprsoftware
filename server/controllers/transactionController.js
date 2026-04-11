@@ -305,7 +305,7 @@ const getOwnerOverview = async (req, res) => {
     const totalProduced = {};
     const flavors = ['orange', 'blueberry', 'jira', 'lemon', 'mint', 'guava'];
     flavors.forEach(flavor => {
-      totalProduced[flavor] = productions.reduce((sum, p) => sum + (p.quantity[flavor] || 0), 0);
+      totalProduced[flavor] = productions.reduce((sum, p) => sum + ((p.quantity && p.quantity[flavor]) || 0), 0);
     });
     const totalProducedCount = Object.values(totalProduced).reduce((a, b) => a + b, 0);
     console.log('Total produced:', totalProducedCount, 'by flavor:', totalProduced);
