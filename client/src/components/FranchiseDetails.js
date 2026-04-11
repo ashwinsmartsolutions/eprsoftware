@@ -17,7 +17,10 @@ import {
   ChevronUp,
   RefreshCw,
   Radio,
-  Factory
+  Factory,
+  Calendar,
+  Filter,
+  X
 } from 'lucide-react';
 
 const FranchiseDetails = () => {
@@ -37,6 +40,8 @@ const FranchiseDetails = () => {
   const [liveMode, setLiveMode] = useState(true);
   const [changedValues, setChangedValues] = useState(new Set());
   const [productionData, setProductionData] = useState(null);
+  const [filterDate, setFilterDate] = useState('');
+  const [filteredData, setFilteredData] = useState(null);
   const prevDetailsRef = useRef(null);
 
   useEffect(() => {
@@ -146,6 +151,83 @@ const FranchiseDetails = () => {
     } catch (err) {
       console.error('Error fetching production data:', err);
     }
+  };
+
+  // Filter data by selected date
+  const handleDateFilter = (date) => {
+    setFilterDate(date);
+    
+    if (!date || !details) {
+      setFilteredData(null);
+      return;
+    }
+    
+    const selectedDate = new Date(date);
+    selectedDate.setHours(0, 0, 0, 0);
+    const nextDay = new Date(selectedDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    
+    // Filter sales by date
+    const filteredSales = details.recentSales.filter(sale => {
+      const saleDate = new Date(sale.createdAt);
+      return saleDate >= selectedDate && saleDate < nextDay;
+    });
+    
+    // Filter returns by date
+    const filteredReturns = details.recentReturns.filter(ret => {
+      const retDate = new Date(ret.createdAt);
+      return retDate >= selectedDate && retDate < nextDay;
+    });
+    
+    // Calculate filtered stats by flavor
+    const filteredSalesByFlavor = {};
+    const filteredReturnsByFlavor = {};
+    const filteredStockByFlavor = {};
+    
+    flavors.forEach(flavor => {
+      // Sales for this flavor on selected date
+      filteredSalesByFlavor[flavor.key] = filteredSales.reduce((sum, sale) => {
+        const items = sale.items || [];
+        return sum + items.filter(item => item.flavor?.toLowerCase() === flavor.key)
+          .reduce((s, item) => s + (item.quantity || 0), 0);
+      }, 0);
+      
+      // Returns for this flavor on selected date
+      filteredReturnsByFlavor[flavor.key] = filteredReturns.reduce((sum, ret) => {
+        const items = ret.items || [];
+        return sum + items.filter(item => item.flavor?.toLowerCase() === flavor.key)
+          .reduce((s, item) => s + (item.quantity || 0), 0);
+      }, 0);
+      
+      // Stock is cumulative up to selected date
+      // Calculate stock from allocations up to selected date minus sales up to selected date
+      const allocationsUpToDate = (details.stats.allocatedToShopsByFlavor?.[flavor.key] || 0);
+      const salesUpToDate = details.recentSales
+        .filter(sale => new Date(sale.createdAt) < nextDay)
+        .reduce((sum, sale) => {
+          const items = sale.items || [];
+          return sum + items.filter(item => item.flavor?.toLowerCase() === flavor.key)
+            .reduce((s, item) => s + (item.quantity || 0), 0);
+        }, 0);
+      
+      filteredStockByFlavor[flavor.key] = Math.max(0, allocationsUpToDate - salesUpToDate);
+    });
+    
+    setFilteredData({
+      date: date,
+      stock: filteredStockByFlavor,
+      sales: filteredSalesByFlavor,
+      returns: filteredReturnsByFlavor,
+      totalSales: Object.values(filteredSalesByFlavor).reduce((a, b) => a + b, 0),
+      totalReturns: Object.values(filteredReturnsByFlavor).reduce((a, b) => a + b, 0),
+      salesTransactions: filteredSales,
+      returnsTransactions: filteredReturns
+    });
+  };
+
+  const clearDateFilter = () => {
+    setFilterDate('');
+    setFilteredData(null);
   };
 
   const toggleLiveMode = () => {
@@ -374,66 +456,119 @@ const FranchiseDetails = () => {
         </div>
       </div>
 
-      {/* Current Stock by Flavor */}
+      {/* Filter and Sort - Combined Section with Date Filter */}
       <div className="card mb-6">
-        <h3 className="heading-3 mb-3 sm:mb-4 flex items-center gap-2">
-          <Package className="h-5 w-5" />
-          Current Stock
-        </h3>
-        <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
-          {flavors.map((flavor) => {
-            const stockQty = stats.currentStock[flavor.key] || 0;
-            const changed = isValueChanged(`stock-${flavor.key}`);
-            return (
-              <div key={flavor.key} className={`rounded-lg sm:rounded-xl p-2 sm:p-3 text-center border transition-all duration-300 ${changed ? 'bg-gradient-to-br from-blue-100 to-blue-200 border-blue-300 ring-2 ring-blue-400 scale-105 shadow-lg' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-100'}`}>
-                <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${flavor.color} mx-auto mb-1 sm:mb-2 shadow-sm ${changed ? 'scale-125' : ''} transition-transform duration-300`}></div>
-                <p className="text-xs sm:text-sm font-medium text-gray-600">{flavor.label}</p>
-                <p className={`text-base sm:text-xl font-bold transition-colors duration-300 ${changed ? 'text-blue-600' : 'text-gray-900'}`}>{stockQty.toLocaleString()}</p>
-              </div>
-            );
-          })}
+        {/* Header with Date Filter */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <h3 className="heading-3 flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filter and Sort
+            {filterDate && (
+              <span className="text-sm font-normal text-gray-500 ml-2">
+                (Showing data for {new Date(filterDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })})
+              </span>
+            )}
+          </h3>
+          
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Calendar className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => handleDateFilter(e.target.value)}
+                className="input pl-10 pr-4 py-2 text-sm"
+                placeholder="Select date"
+              />
+            </div>
+            {filterDate && (
+              <button
+                onClick={clearDateFilter}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500"
+                title="Clear filter"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Sales by Flavor */}
-      <div className="card mb-6">
-        <h3 className="heading-3 mb-3 sm:mb-4 flex items-center gap-2">
-          <TrendingUp className="h-5 w-5" />
-          Sales by Flavor
-        </h3>
-        <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
-          {flavors.map((flavor) => {
-            const salesQty = stats.salesByFlavor[flavor.key] || 0;
-            const changed = isValueChanged(`sales-${flavor.key}`);
-            return (
-              <div key={flavor.key} className={`rounded-lg sm:rounded-xl p-2 sm:p-3 text-center border transition-all duration-300 ${changed ? 'bg-gradient-to-br from-green-100 to-green-200 border-green-300 ring-2 ring-green-400 scale-105 shadow-lg' : 'bg-gradient-to-br from-green-50 to-green-100 border-green-100'}`}>
-                <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${flavor.color} mx-auto mb-1 sm:mb-2 shadow-sm ${changed ? 'scale-125' : ''} transition-transform duration-300`}></div>
-                <p className="text-xs sm:text-sm font-medium text-gray-600">{flavor.label}</p>
-                <p className={`text-base sm:text-xl font-bold transition-colors duration-300 ${changed ? 'text-green-600' : 'text-gray-900'}`}>{salesQty.toLocaleString()}</p>
-              </div>
-            );
-          })}
+        {/* Current Stock by Flavor */}
+        <div className="mb-6">
+          <h4 className="text-sm font-medium text-gray-600 mb-3 flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            Current Stock
+            {filteredData && (
+              <span className="text-xs font-normal text-gray-400">(up to selected date)</span>
+            )}
+          </h4>
+          <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
+            {flavors.map((flavor) => {
+              const stockQty = filteredData 
+                ? (filteredData.stock[flavor.key] || 0)
+                : (stats.currentStock[flavor.key] || 0);
+              const changed = isValueChanged(`stock-${flavor.key}`);
+              return (
+                <div key={flavor.key} className={`rounded-lg sm:rounded-xl p-2 sm:p-3 text-center border transition-all duration-300 ${changed ? 'bg-gradient-to-br from-blue-100 to-blue-200 border-blue-300 ring-2 ring-blue-400 scale-105 shadow-lg' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-100'}`}>
+                  <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${flavor.color} mx-auto mb-1 sm:mb-2 shadow-sm ${changed ? 'scale-125' : ''} transition-transform duration-300`}></div>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">{flavor.label}</p>
+                  <p className={`text-base sm:text-xl font-bold transition-colors duration-300 ${changed ? 'text-blue-600' : 'text-gray-900'}`}>{stockQty.toLocaleString()}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
 
-      {/* Returns by Flavor */}
-      <div className="card mb-6">
-        <h3 className="heading-3 mb-3 sm:mb-4 flex items-center gap-2">
-          <Recycle className="h-5 w-5" />
-          Returns by Flavor
-        </h3>
-        <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
-          {flavors.map((flavor) => {
-            const returnQty = stats.returnsByFlavor[flavor.key] || 0;
-            const changed = isValueChanged(`returns-${flavor.key}`);
-            return (
-              <div key={flavor.key} className={`rounded-lg sm:rounded-xl p-2 sm:p-3 text-center border transition-all duration-300 ${changed ? 'bg-gradient-to-br from-orange-100 to-orange-200 border-orange-300 ring-2 ring-orange-400 scale-105 shadow-lg' : 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-100'}`}>
-                <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${flavor.color} mx-auto mb-1 sm:mb-2 shadow-sm ${changed ? 'scale-125' : ''} transition-transform duration-300`}></div>
-                <p className="text-xs sm:text-sm font-medium text-gray-600">{flavor.label}</p>
-                <p className={`text-base sm:text-xl font-bold transition-colors duration-300 ${changed ? 'text-orange-600' : 'text-gray-900'}`}>{returnQty.toLocaleString()}</p>
-              </div>
-            );
-          })}
+        {/* Sales by Flavor */}
+        <div className="mb-6">
+          <h4 className="text-sm font-medium text-gray-600 mb-3 flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Sales by Flavor
+            {filteredData && (
+              <span className="text-xs font-normal text-gray-400">(on selected date)</span>
+            )}
+          </h4>
+          <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
+            {flavors.map((flavor) => {
+              const salesQty = filteredData
+                ? (filteredData.sales[flavor.key] || 0)
+                : (stats.salesByFlavor[flavor.key] || 0);
+              const changed = isValueChanged(`sales-${flavor.key}`);
+              return (
+                <div key={flavor.key} className={`rounded-lg sm:rounded-xl p-2 sm:p-3 text-center border transition-all duration-300 ${changed ? 'bg-gradient-to-br from-green-100 to-green-200 border-green-300 ring-2 ring-green-400 scale-105 shadow-lg' : 'bg-gradient-to-br from-green-50 to-green-100 border-green-100'}`}>
+                  <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${flavor.color} mx-auto mb-1 sm:mb-2 shadow-sm ${changed ? 'scale-125' : ''} transition-transform duration-300`}></div>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">{flavor.label}</p>
+                  <p className={`text-base sm:text-xl font-bold transition-colors duration-300 ${changed ? 'text-green-600' : 'text-gray-900'}`}>{salesQty.toLocaleString()}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Returns by Flavor */}
+        <div>
+          <h4 className="text-sm font-medium text-gray-600 mb-3 flex items-center gap-2">
+            <Recycle className="h-4 w-4" />
+            Returns by Flavor
+            {filteredData && (
+              <span className="text-xs font-normal text-gray-400">(on selected date)</span>
+            )}
+          </h4>
+          <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
+            {flavors.map((flavor) => {
+              const returnQty = filteredData
+                ? (filteredData.returns[flavor.key] || 0)
+                : (stats.returnsByFlavor[flavor.key] || 0);
+              const changed = isValueChanged(`returns-${flavor.key}`);
+              return (
+                <div key={flavor.key} className={`rounded-lg sm:rounded-xl p-2 sm:p-3 text-center border transition-all duration-300 ${changed ? 'bg-gradient-to-br from-orange-100 to-orange-200 border-orange-300 ring-2 ring-orange-400 scale-105 shadow-lg' : 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-100'}`}>
+                  <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${flavor.color} mx-auto mb-1 sm:mb-2 shadow-sm ${changed ? 'scale-125' : ''} transition-transform duration-300`}></div>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">{flavor.label}</p>
+                  <p className={`text-base sm:text-xl font-bold transition-colors duration-300 ${changed ? 'text-orange-600' : 'text-gray-900'}`}>{returnQty.toLocaleString()}</p>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
