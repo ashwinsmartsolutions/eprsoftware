@@ -493,43 +493,15 @@ const FranchiseDetails = () => {
           </div>
         </div>
 
-        {/* Current Stock by Flavor */}
+        {/* Current Stock by Flavor - Remaining Stock */}
         <div className="mb-6">
           <h4 className="text-sm font-medium text-gray-600 mb-3 flex items-center gap-2">
             <Package className="h-4 w-4" />
-            Current Stock (Remaining at Franchise)
+            Current Stock (Remaining)
             {filteredData && (
               <span className="text-xs font-normal text-gray-400">(up to selected date)</span>
             )}
           </h4>
-          
-          {/* Stock Summary Stats */}
-          {!filteredData && stats && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-              <div className="bg-blue-50 rounded-lg p-3 text-center">
-                <p className="text-xs text-gray-500 mb-1">From Owner</p>
-                <p className="text-lg font-bold text-blue-700">{(stats.totalStockAllocated || 0).toLocaleString()}</p>
-                <p className="text-xs text-gray-400">bottles</p>
-              </div>
-              <div className="bg-purple-50 rounded-lg p-3 text-center">
-                <p className="text-xs text-gray-500 mb-1">Franchise Production</p>
-                <p className="text-lg font-bold text-purple-700">{(stats.totalProducedByFranchise || 0).toLocaleString()}</p>
-                <p className="text-xs text-gray-400">bottles</p>
-              </div>
-              <div className="bg-amber-50 rounded-lg p-3 text-center">
-                <p className="text-xs text-gray-500 mb-1">Distributed to Shops</p>
-                <p className="text-lg font-bold text-amber-700">
-                  {(Object.values(stats.allocatedToShopsByFlavor || {}).reduce((a, b) => a + b, 0)).toLocaleString()}
-                </p>
-                <p className="text-xs text-gray-400">bottles</p>
-              </div>
-              <div className="bg-emerald-50 rounded-lg p-3 text-center border-2 border-emerald-200">
-                <p className="text-xs text-gray-500 mb-1">Remaining Stock</p>
-                <p className="text-lg font-bold text-emerald-700">{(stats.totalCurrentStock || 0).toLocaleString()}</p>
-                <p className="text-xs text-gray-400">bottles</p>
-              </div>
-            </div>
-          )}
           
           <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
             {flavors.map((flavor) => {
