@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const User = require('./models/User');
 const Franchise = require('./models/Franchise');
 const Shop = require('./models/Shop');
+const Production = require('./models/Production');
+const Transaction = require('./models/Transaction');
 
 require('dotenv').config();
 
@@ -19,7 +21,9 @@ const seedData = async () => {
     await User.deleteMany({});
     await Franchise.deleteMany({});
     await Shop.deleteMany({});
-    console.log('Cleared existing data');
+    await Production.deleteMany({});
+    await Transaction.deleteMany({});
+    console.log('Cleared existing data (Users, Franchises, Shops, Productions, Transactions)');
 
     // Create Owner user - pass plain password, User model will hash it
     const owner = new User({
@@ -73,9 +77,7 @@ const seedData = async () => {
     await demoShop.save();
     console.log('Created demo shop (zero stock)');
 
-    // No production records - start fresh
-    // No transactions - start fresh
-    // All values initialized to zero for real-time tracking
+    // All records cleared - starting fresh with zero values for real-time tracking
 
     console.log('\n========================================');
     console.log('Seed data created successfully!');
