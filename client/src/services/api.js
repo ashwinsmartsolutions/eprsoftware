@@ -83,4 +83,36 @@ export const productionAPI = {
   getInventory: () => api.get('/franchise-production/inventory'),
 };
 
+export const adminAPI = {
+  // Dashboard
+  getDashboardStats: () => api.get('/admin/dashboard'),
+  getSystemHealth: () => api.get('/admin/system-health'),
+  
+  // User Management
+  getUsers: (params) => api.get('/admin/users', { params }),
+  createUser: (data) => api.post('/admin/users', data),
+  updateUser: (id, data) => api.put(`/admin/users/${id}`, data),
+  deleteUser: (id, confirmPassword) => api.delete(`/admin/users/${id}`, { data: { confirmPassword } }),
+  resetUserPassword: (id) => api.post(`/admin/users/${id}/reset-password`),
+  toggleUserStatus: (id) => api.post(`/admin/users/${id}/toggle-status`),
+  impersonateUser: (id) => api.post(`/admin/users/${id}/impersonate`),
+  endImpersonation: (impersonatedUserId) => api.post('/admin/impersonate/end', { impersonatedUserId }),
+  
+  // Franchise Management
+  getFranchises: (params) => api.get('/admin/franchises', { params }),
+  overrideFranchiseStock: (id, data) => api.post(`/admin/franchises/${id}/override-stock`, data),
+  getFranchiseAudit: (id) => api.get(`/admin/franchises/${id}/audit`),
+  
+  // Transaction Management
+  getTransactions: (params) => api.get('/admin/transactions', { params }),
+  deleteTransaction: (id, confirmPassword) => api.delete(`/admin/transactions/${id}`, { data: { confirmPassword } }),
+  
+  // Audit Logs
+  getAuditLogs: (params) => api.get('/admin/audit-logs', { params }),
+  
+  // System Maintenance
+  cleanupData: (data) => api.post('/admin/cleanup', data),
+  exportData: (data) => api.post('/admin/export', data),
+};
+
 export default api;

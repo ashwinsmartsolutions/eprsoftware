@@ -5,6 +5,7 @@ import RoutePersistor from './components/RoutePersistor';
 import Login from './pages/Login';
 import OwnerPanel from './pages/OwnerPanel';
 import FranchisePanel from './pages/FranchisePanel';
+import AdminPanel from './pages/AdminPanel';
 import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
 
@@ -29,6 +30,14 @@ function App() {
               element={
                 <ProtectedRoute requiredRole="franchise">
                   <FranchisePanel />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/*" 
+              element={
+                <ProtectedRoute requiredRole="super_admin">
+                  <AdminPanel />
                 </ProtectedRoute>
               } 
             />

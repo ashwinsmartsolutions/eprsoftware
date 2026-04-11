@@ -21,8 +21,12 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['owner', 'franchise', 'distributor'],
+    enum: ['super_admin', 'owner', 'franchise', 'distributor'],
     required: true
+  },
+  isActive: {
+    type: Boolean,
+    default: true
   },
   franchiseId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -42,6 +46,18 @@ const userSchema = new mongoose.Schema({
   lastActive: {
     type: Date,
     default: Date.now
+  },
+  passwordResetRequired: {
+    type: Boolean,
+    default: false
+  },
+  impersonationToken: {
+    type: String,
+    default: null
+  },
+  impersonationExpiry: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

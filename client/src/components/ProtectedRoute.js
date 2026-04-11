@@ -17,8 +17,23 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (requiredRole && user.role !== requiredRole) {
-    return <Navigate to="/login" replace />;
+  // Role hierarchy check
+  if (requiredRole) {
+    const roleHierarchy = {
+      'super_admin': 4,
+      'owner': 3,
+      'franchise': 2,
+      'distributor': 1
+    };
+    
+    const requiredLevel = roleHierarchy[requiredRole] || 0;
+    const userLevel = roleHierarchy[user.role] || 0;
+    
+    // super_admin can access everything
+    // Other roles must meet or exceed required level
+    if (user.role !== 'super_admin' && userLevel < requiredLevel) {
+      return <Navigate to="/login" replace />;
+    }
   }
 
   return children;

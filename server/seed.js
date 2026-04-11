@@ -4,6 +4,7 @@ const Franchise = require('./models/Franchise');
 const Shop = require('./models/Shop');
 const Production = require('./models/Production');
 const Transaction = require('./models/Transaction');
+const AuditLog = require('./models/AuditLog');
 
 require('dotenv').config();
 
@@ -23,11 +24,22 @@ const seedData = async () => {
     await Shop.deleteMany({});
     await Production.deleteMany({});
     await Transaction.deleteMany({});
-    console.log('Cleared existing data (Users, Franchises, Shops, Productions, Transactions)');
+    await AuditLog.deleteMany({});
+    console.log('Cleared existing data (Users, Franchises, Shops, Productions, Transactions, AuditLogs)');
+
+    // Create Super Admin user - highest privilege level
+    const superAdmin = new User({
+      username: 'superadmin',
+      email: 'superadmin@epr.com',
+      password: 'SuperAdmin123!',
+      role: 'super_admin'
+    });
+    await superAdmin.save();
+    console.log('Created super admin user');
 
     // Create Owner user - pass plain password, User model will hash it
     const owner = new User({
-      username: 'admin',
+      username: 'owner',
       email: 'owner@epr.com',
       password: 'owner!123',
       role: 'owner'
@@ -82,9 +94,13 @@ const seedData = async () => {
     console.log('\n========================================');
     console.log('Seed data created successfully!');
     console.log('========================================');
-    console.log('\nLogin Credentials:');
+    console.log('\n========================================');
+    console.log('Login Credentials:');
+    console.log('========================================');
+    console.log('Super Admin: superadmin@epr.com / SuperAdmin123!');
     console.log('Owner: owner@epr.com / owner!123');
     console.log('Franchise: dist@epr.com / dist123');
+    console.log('========================================');
     console.log('\nInitial State (All Values at Zero):');
     console.log('- Total Franchises: 1');
     console.log('- Total Produced: 0 bottles');

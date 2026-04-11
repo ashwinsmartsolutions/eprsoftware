@@ -64,6 +64,7 @@ app.use('/api/stock', require('./routes/stock'));
 app.use('/api/transactions', require('./routes/transactions'));
 app.use('/api/production', require('./routes/production'));
 app.use('/api/franchise-production', require('./routes/franchiseProduction'));
+app.use('/api/admin', require('./routes/admin'));
 
 const PORT = process.env.PORT || 5000;
 
