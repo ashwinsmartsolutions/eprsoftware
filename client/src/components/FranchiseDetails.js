@@ -290,7 +290,7 @@ const FranchiseDetails = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <div className={`stat-card bg-gradient-to-br from-blue-50 to-blue-100 transition-all duration-300 ${isValueChanged('totalShops') ? 'ring-2 ring-blue-400 ring-offset-2 scale-105 shadow-lg' : ''}`}>
           <div className="flex items-center justify-between">
             <div>
@@ -345,19 +345,19 @@ const FranchiseDetails = () => {
 
       {/* Current Stock by Flavor */}
       <div className="card mb-6">
-        <h3 className="heading-3 mb-4 flex items-center gap-2">
+        <h3 className="heading-3 mb-3 sm:mb-4 flex items-center gap-2">
           <Package className="h-5 w-5" />
           Current Stock
         </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
           {flavors.map((flavor) => {
             const stockQty = stats.currentStock[flavor.key] || 0;
             const changed = isValueChanged(`stock-${flavor.key}`);
             return (
-              <div key={flavor.key} className={`rounded-xl p-3 text-center border transition-all duration-300 ${changed ? 'bg-gradient-to-br from-blue-100 to-blue-200 border-blue-300 ring-2 ring-blue-400 scale-105 shadow-lg' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-100'}`}>
-                <div className={`w-4 h-4 rounded-full ${flavor.color} mx-auto mb-2 shadow-sm ${changed ? 'scale-125' : ''} transition-transform duration-300`}></div>
-                <p className="text-sm font-medium text-gray-600">{flavor.label}</p>
-                <p className={`text-xl font-bold transition-colors duration-300 ${changed ? 'text-blue-600' : 'text-gray-900'}`}>{stockQty.toLocaleString()}</p>
+              <div key={flavor.key} className={`rounded-lg sm:rounded-xl p-2 sm:p-3 text-center border transition-all duration-300 ${changed ? 'bg-gradient-to-br from-blue-100 to-blue-200 border-blue-300 ring-2 ring-blue-400 scale-105 shadow-lg' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-100'}`}>
+                <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${flavor.color} mx-auto mb-1 sm:mb-2 shadow-sm ${changed ? 'scale-125' : ''} transition-transform duration-300`}></div>
+                <p className="text-xs sm:text-sm font-medium text-gray-600">{flavor.label}</p>
+                <p className={`text-base sm:text-xl font-bold transition-colors duration-300 ${changed ? 'text-blue-600' : 'text-gray-900'}`}>{stockQty.toLocaleString()}</p>
               </div>
             );
           })}
@@ -366,19 +366,19 @@ const FranchiseDetails = () => {
 
       {/* Sales by Flavor */}
       <div className="card mb-6">
-        <h3 className="heading-3 mb-4 flex items-center gap-2">
+        <h3 className="heading-3 mb-3 sm:mb-4 flex items-center gap-2">
           <TrendingUp className="h-5 w-5" />
           Sales by Flavor
         </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
           {flavors.map((flavor) => {
             const salesQty = stats.salesByFlavor[flavor.key] || 0;
             const changed = isValueChanged(`sales-${flavor.key}`);
             return (
-              <div key={flavor.key} className={`rounded-xl p-3 text-center border transition-all duration-300 ${changed ? 'bg-gradient-to-br from-green-100 to-green-200 border-green-300 ring-2 ring-green-400 scale-105 shadow-lg' : 'bg-gradient-to-br from-green-50 to-green-100 border-green-100'}`}>
-                <div className={`w-4 h-4 rounded-full ${flavor.color} mx-auto mb-2 shadow-sm ${changed ? 'scale-125' : ''} transition-transform duration-300`}></div>
-                <p className="text-sm font-medium text-gray-600">{flavor.label}</p>
-                <p className={`text-xl font-bold transition-colors duration-300 ${changed ? 'text-green-600' : 'text-gray-900'}`}>{salesQty.toLocaleString()}</p>
+              <div key={flavor.key} className={`rounded-lg sm:rounded-xl p-2 sm:p-3 text-center border transition-all duration-300 ${changed ? 'bg-gradient-to-br from-green-100 to-green-200 border-green-300 ring-2 ring-green-400 scale-105 shadow-lg' : 'bg-gradient-to-br from-green-50 to-green-100 border-green-100'}`}>
+                <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${flavor.color} mx-auto mb-1 sm:mb-2 shadow-sm ${changed ? 'scale-125' : ''} transition-transform duration-300`}></div>
+                <p className="text-xs sm:text-sm font-medium text-gray-600">{flavor.label}</p>
+                <p className={`text-base sm:text-xl font-bold transition-colors duration-300 ${changed ? 'text-green-600' : 'text-gray-900'}`}>{salesQty.toLocaleString()}</p>
               </div>
             );
           })}
@@ -387,19 +387,19 @@ const FranchiseDetails = () => {
 
       {/* Returns by Flavor */}
       <div className="card mb-6">
-        <h3 className="heading-3 mb-4 flex items-center gap-2">
+        <h3 className="heading-3 mb-3 sm:mb-4 flex items-center gap-2">
           <Recycle className="h-5 w-5" />
           Returns by Flavor
         </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
           {flavors.map((flavor) => {
             const returnQty = stats.returnsByFlavor[flavor.key] || 0;
             const changed = isValueChanged(`returns-${flavor.key}`);
             return (
-              <div key={flavor.key} className={`rounded-xl p-3 text-center border transition-all duration-300 ${changed ? 'bg-gradient-to-br from-orange-100 to-orange-200 border-orange-300 ring-2 ring-orange-400 scale-105 shadow-lg' : 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-100'}`}>
-                <div className={`w-4 h-4 rounded-full ${flavor.color} mx-auto mb-2 shadow-sm ${changed ? 'scale-125' : ''} transition-transform duration-300`}></div>
-                <p className="text-sm font-medium text-gray-600">{flavor.label}</p>
-                <p className={`text-xl font-bold transition-colors duration-300 ${changed ? 'text-orange-600' : 'text-gray-900'}`}>{returnQty.toLocaleString()}</p>
+              <div key={flavor.key} className={`rounded-lg sm:rounded-xl p-2 sm:p-3 text-center border transition-all duration-300 ${changed ? 'bg-gradient-to-br from-orange-100 to-orange-200 border-orange-300 ring-2 ring-orange-400 scale-105 shadow-lg' : 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-100'}`}>
+                <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${flavor.color} mx-auto mb-1 sm:mb-2 shadow-sm ${changed ? 'scale-125' : ''} transition-transform duration-300`}></div>
+                <p className="text-xs sm:text-sm font-medium text-gray-600">{flavor.label}</p>
+                <p className={`text-base sm:text-xl font-bold transition-colors duration-300 ${changed ? 'text-orange-600' : 'text-gray-900'}`}>{returnQty.toLocaleString()}</p>
               </div>
             );
           })}

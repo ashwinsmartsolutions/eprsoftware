@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { productionAPI } from '../services/api';
-import { Plus, History, Factory, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, History, Factory, ChevronDown, ChevronUp, X } from 'lucide-react';
 
 const OwnerProduction = () => {
   const [productionHistory, setProductionHistory] = useState([]);
@@ -165,11 +165,11 @@ const OwnerProduction = () => {
           <h2 className="heading-2">Production Management</h2>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => setShowForm(true)}
           className="btn btn-primary w-full sm:w-auto"
         >
           <Plus className="h-5 w-5" />
-          <span>{showForm ? 'Cancel' : 'Record Production'}</span>
+          <span>Record Production</span>
         </button>
       </div>
 
@@ -212,82 +212,124 @@ const OwnerProduction = () => {
         </div>
       )}
 
+      {/* Modal Popup for Recording Production */}
       {showForm && (
-        <div className="card mb-6 animate-slide-up">
-          <h3 className="heading-3 mb-4 flex items-center">
-            <Plus className="h-5 w-5 mr-2" />
-            Record New Production
-          </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+            onClick={() => !loading && setShowForm(false)}
+          />
           
-          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-            {/* Date Field */}
-            <div className="space-y-2">
-              <label className="form-label">Production Date</label>
-              <input
-                type="date"
-                name="date"
-                value={formData.date}
-                onChange={handleChange}
-                className="input"
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {flavors.map((flavor) => (
-                <div key={flavor.key} className="space-y-2">
-                  <label className="form-label flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded ${flavor.color}`}></div>
-                    {flavor.label} (bottles)
-                  </label>
-                  <input
-                    type="number"
-                    name={flavor.key}
-                    value={formData[flavor.key]}
-                    onChange={handleChange}
-                    className="input"
-                    placeholder="0"
-                    min="0"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="space-y-2">
-              <label className="form-label">Notes (optional)</label>
-              <textarea
-                name="notes"
-                value={formData.notes}
-                onChange={handleChange}
-                className="input"
-                rows="3"
-                placeholder="Enter any production notes..."
-              />
-            </div>
-
-            <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-              <div className="text-sm">
-                <span className="text-gray-500">Total to Record: </span>
-                <span className="font-bold text-primary-600">
-                  {flavors.reduce((sum, flavor) => sum + (parseInt(formData[flavor.key]) || 0), 0)} bottles
-                </span>
-              </div>
+          {/* Modal Content */}
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-slide-up">
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+              <h3 className="heading-3 flex items-center gap-2">
+                <Plus className="h-5 w-5 text-primary-600" />
+                Record New Production
+              </h3>
               <button
-                type="submit"
+                onClick={() => !loading && setShowForm(false)}
                 disabled={loading}
-                className="btn btn-primary disabled:opacity-50"
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
               >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <div className="animate-spin h-4 w-4 border-b-2 border-white rounded-full" />
-                    Recording...
-                  </span>
-                ) : (
-                  'Record Production'
-                )}
+                <X className="h-5 w-5 text-gray-500" />
               </button>
             </div>
-          </form>
+            
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="p-6 space-y-5">
+              {/* Date Field */}
+              <div className="space-y-2">
+                <label className="form-label">Production Date</label>
+                <input
+                  type="date"
+                  name="date"
+                  value={formData.date}
+                  onChange={handleChange}
+                  className="input"
+                  required
+                  disabled={loading}
+                />
+              </div>
+
+              {/* Flavor Inputs */}
+              <div className="space-y-3">
+                <label className="form-label">Production Quantities</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {flavors.map((flavor) => (
+                    <div key={flavor.key} className="space-y-2">
+                      <label className="form-label flex items-center gap-2 text-sm">
+                        <div className={`w-3 h-3 rounded ${flavor.color}`}></div>
+                        {flavor.label} (bottles)
+                      </label>
+                      <input
+                        type="number"
+                        name={flavor.key}
+                        value={formData[flavor.key]}
+                        onChange={handleChange}
+                        className="input"
+                        placeholder="0"
+                        min="0"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        disabled={loading}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-2">
+                <label className="form-label">Notes (optional)</label>
+                <textarea
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleChange}
+                  className="input"
+                  rows="3"
+                  placeholder="Enter any production notes..."
+                  disabled={loading}
+                />
+              </div>
+
+              {/* Footer */}
+              <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 pt-4 border-t border-gray-200">
+                <div className="text-sm bg-gray-50 px-4 py-2 rounded-lg">
+                  <span className="text-gray-500">Total to Record: </span>
+                  <span className="font-bold text-primary-600">
+                    {flavors.reduce((sum, flavor) => sum + (parseInt(formData[flavor.key]) || 0), 0)} bottles
+                  </span>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => !loading && setShowForm(false)}
+                    disabled={loading}
+                    className="btn btn-secondary flex-1 sm:flex-none"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="btn btn-primary flex-1 sm:flex-none disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <span className="flex items-center gap-2">
+                        <div className="animate-spin h-4 w-4 border-b-2 border-white rounded-full" />
+                        Recording...
+                      </span>
+                    ) : (
+                      'Record Production'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
