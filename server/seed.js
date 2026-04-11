@@ -28,8 +28,8 @@ const seedData = async () => {
     // Create Owner user - pass plain password, User model will hash it
     const owner = new User({
       username: 'admin',
-      email: 'admin@epr.com',
-      password: 'admin123',
+      email: 'owner@epr.com',
+      password: 'owner!123',
       role: 'owner'
     });
     await owner.save();
@@ -83,7 +83,7 @@ const seedData = async () => {
     console.log('Seed data created successfully!');
     console.log('========================================');
     console.log('\nLogin Credentials:');
-    console.log('Owner: admin@epr.com / admin123');
+    console.log('Owner: owner@epr.com / owner!123');
     console.log('Franchise: dist@epr.com / dist123');
     console.log('\nInitial State (All Values at Zero):');
     console.log('- Total Franchises: 1');
