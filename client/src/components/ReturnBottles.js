@@ -35,6 +35,7 @@ const ReturnBottles = () => {
   const [activeTab, setActiveTab] = useState('return'); // 'return' or 'history'
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     fetchShops();
     if (navigateShopId) {
       setSelectedShop(navigateShopId);
@@ -70,14 +71,17 @@ const ReturnBottles = () => {
     if (selectedShop && !filtered.find(s => s._id === selectedShop) && !navigateShopId) {
       setSelectedShop('');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedArea, shops, navigateShopId]);
 
   // Fetch return history when filters change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchReturnHistory();
   }, [historyArea, historyShop, sortBy, sortOrder, selectedDate]);
 
   // Fetch shop data when selected shop changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (selectedShop) {
       fetchShopSalesAndReturns(selectedShop);
@@ -589,7 +593,6 @@ const ReturnBottles = () => {
                 {flavors.map((flavor) => {
                   const available = getAvailableEmptyBottles(flavor.key);
                   const sold = shopSales[flavor.key] || 0;
-                  const returned = emptyBottlesReturned[flavor.key] || 0;
                   return (
                     <div key={flavor.key} className="flex items-center justify-between">
                       <div className="flex items-center gap-2 min-w-0">

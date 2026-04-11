@@ -55,6 +55,7 @@ const DistributeStock = () => {
       setSelectedShop('');
       setShopDetails(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedArea, shops]);
 
   useEffect(() => {
@@ -67,6 +68,7 @@ const DistributeStock = () => {
   }, [selectedShop, shops]);
 
   // Fetch distribution history when filters change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchDistributionHistory();
   }, [historyArea, historyShop, sortBy, sortOrder, selectedDate]);

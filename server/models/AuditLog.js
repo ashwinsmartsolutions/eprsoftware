@@ -5,14 +5,15 @@ const auditLogSchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: [
-      'user_create', 'user_update', 'user_delete', 'user_reset_password',
-      'franchise_create', 'franchise_update', 'franchise_delete', 'franchise_transfer',
+      'user_create', 'user_update', 'user_delete', 'user_reset_password', 'user_list_view',
+      'franchise_create', 'franchise_update', 'franchise_delete', 'franchise_transfer', 'franchise_audit_view',
       'shop_create', 'shop_update', 'shop_delete',
       'stock_override', 'transaction_override', 'transaction_delete',
-      'system_cleanup', 'system_backup', 'system_seed',
+      'system_cleanup', 'system_backup', 'system_seed', 'system_health_check',
       'impersonate_start', 'impersonate_end',
       'login', 'logout', 'password_change',
-      'config_update', 'product_add', 'product_update'
+      'config_update', 'product_add', 'product_update',
+      'dashboard_view', 'data_export'
     ]
   },
   performedBy: {

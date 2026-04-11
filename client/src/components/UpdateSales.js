@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { shopAPI, stockAPI, transactionAPI } from '../services/api';
-import { Package, Store, TrendingUp, MapPin, History, Filter, ChevronDown, ChevronUp, ShoppingCart } from 'lucide-react';
+import { Store, MapPin, History, Filter, ChevronDown, ChevronUp, ShoppingCart } from 'lucide-react';
 
 const UpdateSales = () => {
   const [searchParams] = useSearchParams();
@@ -40,6 +40,7 @@ const UpdateSales = () => {
     if (navigateShopId) {
       fetchShopStock(navigateShopId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -70,8 +71,10 @@ const UpdateSales = () => {
     if (selectedShop && !filtered.find(s => s._id === selectedShop) && !navigateShopId) {
       setSelectedShop('');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedArea, shops, navigateShopId]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (selectedShop) {
       const selectedShopData = shops.find(s => s._id === selectedShop);

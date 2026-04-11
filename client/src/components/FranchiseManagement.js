@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { franchiseAPI, authAPI } from '../services/api';
-import { Plus, Edit, Trash2, RefreshCw, Circle, Eye, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Circle, Eye, X } from 'lucide-react';
 
 const FranchiseForm = ({ franchise, onClose, onSubmit }) => {
   const [formData, setFormData] = useState({

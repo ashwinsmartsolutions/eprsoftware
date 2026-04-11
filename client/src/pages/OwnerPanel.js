@@ -7,7 +7,6 @@ import {
   TrendingUp, 
   Recycle, 
   LogOut, 
-  Plus,
   ChevronRight,
   Home,
   BarChart3,

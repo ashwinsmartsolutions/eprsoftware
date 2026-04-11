@@ -1,5 +1,5 @@
 import React from 'react';
-import { Package, Store, TrendingUp, Recycle, ArrowUpRight } from 'lucide-react';
+import { Package, Store, TrendingUp, Recycle } from 'lucide-react';
 
 const FranchiseOverview = ({ overview }) => {
   const cards = [

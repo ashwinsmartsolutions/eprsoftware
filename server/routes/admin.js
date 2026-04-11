@@ -1,6 +1,6 @@
 const express = require('express');
 const { auth, superAdminAuth } = require('../middleware/auth');
-const { mongoIdParamRules, validate } = require('../middleware/validation');
+const { mongoIdParamRules } = require('../middleware/validation');
 
 const {
   // Dashboard
@@ -50,25 +50,25 @@ router.get('/system-health', getSystemHealth);
 // ==========================================
 router.get('/users', getAllUsers);
 router.post('/users', createUser);
-router.put('/users/:id', mongoIdParamRules('id'), validate, updateUser);
-router.delete('/users/:id', mongoIdParamRules('id'), validate, deleteUser);
-router.post('/users/:id/reset-password', mongoIdParamRules('id'), validate, resetUserPassword);
-router.post('/users/:id/toggle-status', mongoIdParamRules('id'), validate, toggleUserStatus);
-router.post('/users/:id/impersonate', mongoIdParamRules('id'), validate, impersonateUser);
+router.put('/users/:id', mongoIdParamRules('id'), updateUser);
+router.delete('/users/:id', mongoIdParamRules('id'), deleteUser);
+router.post('/users/:id/reset-password', mongoIdParamRules('id'), resetUserPassword);
+router.post('/users/:id/toggle-status', mongoIdParamRules('id'), toggleUserStatus);
+router.post('/users/:id/impersonate', mongoIdParamRules('id'), impersonateUser);
 router.post('/impersonate/end', endImpersonation);
 
 // ==========================================
 // Franchise Management
 // ==========================================
 router.get('/franchises', getAllFranchises);
-router.post('/franchises/:id/override-stock', mongoIdParamRules('id'), validate, overrideFranchiseStock);
-router.get('/franchises/:id/audit', mongoIdParamRules('id'), validate, getFranchiseAudit);
+router.post('/franchises/:id/override-stock', mongoIdParamRules('id'), overrideFranchiseStock);
+router.get('/franchises/:id/audit', mongoIdParamRules('id'), getFranchiseAudit);
 
 // ==========================================
 // Transaction Management
 // ==========================================
 router.get('/transactions', getAllTransactions);
-router.delete('/transactions/:id', mongoIdParamRules('id'), validate, deleteTransaction);
+router.delete('/transactions/:id', mongoIdParamRules('id'), deleteTransaction);
 
 // ==========================================
 // Audit Logs

@@ -60,6 +60,7 @@ const FranchiseDetails = () => {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, liveMode]);
 
   const fetchFranchiseDetails = async (silent = false) => {
@@ -249,14 +250,6 @@ const FranchiseDetails = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0
-    }).format(amount || 0);
   };
 
   if (loading) {

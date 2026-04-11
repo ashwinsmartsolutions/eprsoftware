@@ -19,25 +19,19 @@ import {
   Download,
   AlertTriangle,
   CheckCircle,
-  XCircle,
   Shield,
   Activity,
   Database,
-  Clock,
-  Filter,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  MoreVertical,
   X,
   Key,
-  Power,
-  ArrowLeftRight
+  Power
 } from 'lucide-react';
 import { adminAPI } from '../services/api';
 
 // Tab Components
-const DashboardTab = ({ stats, recentActivity }) => {
+const DashboardTab = ({ stats, recentActivity, onRefresh }) => {
   if (!stats) return <div className="p-8 text-center">Loading...</div>;
 
   const statCards = [
@@ -80,10 +74,32 @@ const DashboardTab = ({ stats, recentActivity }) => {
         })}
       </div>
 
+      {/* Users by Role */}
+      {stats.usersByRole && Object.keys(stats.usersByRole).length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Users by Role</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {Object.entries(stats.usersByRole).map(([role, count]) => (
+              <div key={role} className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-xs text-gray-500 uppercase">{role.replace('_', ' ')}</p>
+                <p className="text-xl font-bold text-gray-900">{count}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Recent Activity */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="p-6 border-b border-gray-100">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">Recent Admin Activity</h3>
+          <button 
+            onClick={onRefresh}
+            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+            title="Refresh"
+          >
+            <RefreshCw className="h-5 w-5" />
+          </button>
         </div>
         <div className="divide-y divide-gray-100">
           {recentActivity?.slice(0, 10).map((activity, idx) => (
@@ -649,8 +665,20 @@ const FranchiseManagementTab = ({ franchises, onRefresh }) => {
   );
 };
 
-const TransactionsTab = ({ transactions, pagination, onPageChange, onRefresh, onDelete }) => {
-  const [filters, setFilters] = useState({ type: '', franchiseId: '', startDate: '', endDate: '' });
+const TransactionsTab = ({ transactions, pagination, onPageChange, onRefresh, onDelete, onFilterChange, filters }) => {
+  const handleFilterChange = (key, value) => {
+    const newFilters = { ...filters, [key]: value };
+    onFilterChange(newFilters);
+  };
+
+  const applyFilters = () => {
+    onRefresh(1);
+  };
+
+  const clearFilters = () => {
+    onFilterChange({ type: '', franchiseId: '', startDate: '', endDate: '' });
+    onRefresh(1);
+  };
 
   return (
     <div className="space-y-4">
@@ -659,7 +687,7 @@ const TransactionsTab = ({ transactions, pagination, onPageChange, onRefresh, on
         <div className="flex flex-wrap gap-3 items-center">
           <select
             value={filters.type}
-            onChange={(e) => setFilters({...filters, type: e.target.value})}
+            onChange={(e) => handleFilterChange('type', e.target.value)}
             className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500"
           >
             <option value="">All Types</option>
@@ -670,18 +698,30 @@ const TransactionsTab = ({ transactions, pagination, onPageChange, onRefresh, on
           <input
             type="date"
             value={filters.startDate}
-            onChange={(e) => setFilters({...filters, startDate: e.target.value})}
+            onChange={(e) => handleFilterChange('startDate', e.target.value)}
             className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500"
             placeholder="Start Date"
           />
           <input
             type="date"
             value={filters.endDate}
-            onChange={(e) => setFilters({...filters, endDate: e.target.value})}
+            onChange={(e) => handleFilterChange('endDate', e.target.value)}
             className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500"
             placeholder="End Date"
           />
-          <button onClick={onRefresh} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+          <button 
+            onClick={applyFilters}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+          >
+            Apply Filters
+          </button>
+          <button 
+            onClick={clearFilters}
+            className="px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50"
+          >
+            Clear
+          </button>
+          <button onClick={() => onRefresh(1)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
             <RefreshCw className="h-5 w-5" />
           </button>
         </div>
@@ -765,8 +805,7 @@ const TransactionsTab = ({ transactions, pagination, onPageChange, onRefresh, on
   );
 };
 
-const AuditLogsTab = ({ logs, pagination, onPageChange, onRefresh }) => {
-  const [filters, setFilters] = useState({ action: '', startDate: '', endDate: '' });
+const AuditLogsTab = ({ logs, pagination, onPageChange, onRefresh, onFilterChange, filters }) => {
 
   const actionColors = {
     user_create: 'bg-green-100 text-green-700',
@@ -786,7 +825,7 @@ const AuditLogsTab = ({ logs, pagination, onPageChange, onRefresh }) => {
         <div className="flex flex-wrap gap-3 items-center">
           <select
             value={filters.action}
-            onChange={(e) => setFilters({...filters, action: e.target.value})}
+            onChange={(e) => onFilterChange({...filters, action: e.target.value})}
             className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500"
           >
             <option value="">All Actions</option>
@@ -800,10 +839,30 @@ const AuditLogsTab = ({ logs, pagination, onPageChange, onRefresh }) => {
           <input
             type="date"
             value={filters.startDate}
-            onChange={(e) => setFilters({...filters, startDate: e.target.value})}
+            onChange={(e) => onFilterChange({...filters, startDate: e.target.value})}
             className="px-3 py-2 border border-gray-200 rounded-lg"
+            placeholder="Start Date"
           />
-          <button onClick={onRefresh} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+          <input
+            type="date"
+            value={filters.endDate}
+            onChange={(e) => onFilterChange({...filters, endDate: e.target.value})}
+            className="px-3 py-2 border border-gray-200 rounded-lg"
+            placeholder="End Date"
+          />
+          <button 
+            onClick={() => onRefresh(1)}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+          >
+            Apply
+          </button>
+          <button 
+            onClick={() => { onFilterChange({ action: '', startDate: '', endDate: '' }); onRefresh(1); }}
+            className="px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50"
+          >
+            Clear
+          </button>
+          <button onClick={() => onRefresh(1)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
             <RefreshCw className="h-5 w-5" />
           </button>
         </div>
@@ -880,12 +939,289 @@ const AuditLogsTab = ({ logs, pagination, onPageChange, onRefresh }) => {
   );
 };
 
+// System Health & Maintenance Tab
+const SystemTab = () => {
+  const [systemHealth, setSystemHealth] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [cleanupDays, setCleanupDays] = useState(90);
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [cleanupResult, setCleanupResult] = useState(null);
+  const [exportCollection, setExportCollection] = useState('users');
+
+  const fetchSystemHealth = async () => {
+    setLoading(true);
+    try {
+      const res = await adminAPI.getSystemHealth();
+      setSystemHealth(res.data.health);
+    } catch (error) {
+      console.error('Error fetching system health:', error);
+      alert('Error fetching system health');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSystemHealth();
+  }, []);
+
+  const handleCleanup = async () => {
+    if (!passwordConfirm) {
+      alert('Please enter your password to confirm');
+      return;
+    }
+    if (!window.confirm(`This will delete data older than ${cleanupDays} days. Continue?`)) return;
+    
+    try {
+      const res = await adminAPI.cleanupData({ olderThanDays: cleanupDays, confirmPassword: passwordConfirm });
+      setCleanupResult(res.data.results);
+      alert('Cleanup completed successfully');
+      setPasswordConfirm('');
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error during cleanup');
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const res = await adminAPI.exportData({ collection: exportCollection, format: 'json' });
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = res.data.filename || `${exportCollection}_export.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error exporting data');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* System Health */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <Activity className="h-5 w-5 text-blue-600" />
+            System Health
+          </h3>
+          <button
+            onClick={fetchSystemHealth}
+            disabled={loading}
+            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+          >
+            <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+        
+        {systemHealth ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <p className="text-sm text-gray-500">Database Status</p>
+              <p className={`font-semibold ${systemHealth.database === 'connected' ? 'text-green-600' : 'text-red-600'}`}>
+                {systemHealth.database === 'connected' ? 'Connected' : 'Disconnected'}
+              </p>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <p className="text-sm text-gray-500">Uptime</p>
+              <p className="font-semibold text-gray-900">{systemHealth.uptime}</p>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <p className="text-sm text-gray-500">Memory (Heap Used)</p>
+              <p className="font-semibold text-gray-900">{systemHealth.memory?.heapUsed || 'N/A'}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="text-gray-500">Loading system health...</p>
+        )}
+      </div>
+
+      {/* Data Cleanup */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-6">
+          <Database className="h-5 w-5 text-red-600" />
+          Data Cleanup
+        </h3>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Delete records older than (days)
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={cleanupDays}
+                onChange={(e) => setCleanupDays(parseInt(e.target.value) || 90)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Your password (to confirm)
+              </label>
+              <input
+                type="password"
+                value={passwordConfirm}
+                onChange={(e) => setPasswordConfirm(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+                placeholder="Enter password"
+              />
+            </div>
+          </div>
+          <button
+            onClick={handleCleanup}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+          >
+            <Trash2 className="h-4 w-4" />
+            Run Cleanup
+          </button>
+          {cleanupResult && (
+            <div className="bg-green-50 p-4 rounded-lg">
+              <p className="text-green-800 font-medium">Cleanup Results:</p>
+              <pre className="text-sm text-green-700 mt-2">{JSON.stringify(cleanupResult, null, 2)}</pre>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Data Export */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-6">
+          <Download className="h-5 w-5 text-green-600" />
+          Data Export
+        </h3>
+        <div className="flex gap-4 items-end">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Collection</label>
+            <select
+              value={exportCollection}
+              onChange={(e) => setExportCollection(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+            >
+              <option value="users">Users</option>
+              <option value="franchises">Franchises</option>
+              <option value="transactions">Transactions</option>
+              <option value="auditLogs">Audit Logs</option>
+            </select>
+          </div>
+          <button
+            onClick={handleExport}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Export JSON
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Edit User Modal Component
+const EditUserModal = ({ user, onClose, onSave }) => {
+  const [formData, setFormData] = useState({
+    username: user.username || '',
+    email: user.email || '',
+    role: user.role || 'franchise',
+    isActive: user.isActive !== false
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(user._id, formData);
+  };
+
+  const roles = [
+    { value: 'super_admin', label: 'Super Admin' },
+    { value: 'owner', label: 'Owner' },
+    { value: 'franchise', label: 'Franchise' },
+    { value: 'distributor', label: 'Distributor' },
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">Edit User</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+            <input
+              type="text"
+              required
+              value={formData.username}
+              onChange={(e) => setFormData({...formData, username: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              required
+              value={formData.email}
+              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+            <select
+              value={formData.role}
+              onChange={(e) => setFormData({...formData, role: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500"
+            >
+              {roles.map(r => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="isActive"
+              checked={formData.isActive}
+              onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
+              className="h-4 w-4 text-primary-600 rounded border-gray-300"
+            />
+            <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
+              Active Account
+            </label>
+          </div>
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+            >
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 // Main Admin Panel Component
 const AdminPanel = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [loading, setLoading] = useState(false);
   
   // Data states
   const [dashboardStats, setDashboardStats] = useState(null);
@@ -896,6 +1232,10 @@ const AdminPanel = () => {
   const [transactionPagination, setTransactionPagination] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditPagination, setAuditPagination] = useState(null);
+
+  // Filter states
+  const [transactionFilters, setTransactionFilters] = useState({ type: '', franchiseId: '', startDate: '', endDate: '' });
+  const [auditFilters, setAuditFilters] = useState({ action: '', startDate: '', endDate: '' });
 
   // Modals
   const [showEditModal, setShowEditModal] = useState(false);
@@ -917,8 +1257,9 @@ const AdminPanel = () => {
     if (activeTab === 'dashboard') loadDashboard();
     else if (activeTab === 'users') loadUsers();
     else if (activeTab === 'franchises') loadFranchises();
-    else if (activeTab === 'transactions') loadTransactions();
-    else if (activeTab === 'audit') loadAuditLogs();
+    else if (activeTab === 'transactions') loadTransactions(1, transactionFilters);
+    else if (activeTab === 'audit') loadAuditLogs(1, auditFilters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   const loadDashboard = async () => {
@@ -949,9 +1290,10 @@ const AdminPanel = () => {
     }
   };
 
-  const loadTransactions = async (page = 1) => {
+  const loadTransactions = async (page = 1, filters = transactionFilters) => {
     try {
-      const res = await adminAPI.getTransactions({ page, limit: 50 });
+      const params = { page, limit: 50, ...filters };
+      const res = await adminAPI.getTransactions(params);
       setTransactions(res.data.transactions);
       setTransactionPagination(res.data.pagination);
     } catch (error) {
@@ -959,11 +1301,12 @@ const AdminPanel = () => {
     }
   };
 
-  const loadAuditLogs = async (page = 1) => {
+  const loadAuditLogs = async (page = 1, filters = auditFilters) => {
     try {
-      const res = await adminAPI.getAuditLogs({ page, limit: 50 });
+      const params = { page, limit: 50, ...filters };
+      const res = await adminAPI.getAuditLogs(params);
       setAuditLogs(res.data.logs);
-      setAuditPagination(res.data.summary);
+      setAuditPagination(res.data.pagination);
     } catch (error) {
       console.error('Error loading audit logs:', error);
     }
@@ -1031,6 +1374,7 @@ const AdminPanel = () => {
     { id: 'franchises', label: 'Franchises', icon: Building2 },
     { id: 'transactions', label: 'Transactions', icon: Receipt },
     { id: 'audit', label: 'Audit Logs', icon: FileText },
+    { id: 'system', label: 'System', icon: Settings },
   ];
 
   return (
@@ -1093,7 +1437,11 @@ const AdminPanel = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'dashboard' && (
-          <DashboardTab stats={dashboardStats} recentActivity={[]} />
+          <DashboardTab 
+            stats={dashboardStats} 
+            recentActivity={dashboardStats?.recentActivity || []} 
+            onRefresh={loadDashboard}
+          />
         )}
         
         {activeTab === 'users' && (
@@ -1121,8 +1469,10 @@ const AdminPanel = () => {
             transactions={transactions}
             pagination={transactionPagination}
             onPageChange={loadTransactions}
-            onRefresh={() => loadTransactions(transactionPagination?.page || 1)}
+            onRefresh={(page) => loadTransactions(page || transactionPagination?.page || 1)}
             onDelete={handleDeleteTransaction}
+            onFilterChange={setTransactionFilters}
+            filters={transactionFilters}
           />
         )}
         
@@ -1131,10 +1481,31 @@ const AdminPanel = () => {
             logs={auditLogs}
             pagination={auditPagination}
             onPageChange={loadAuditLogs}
-            onRefresh={() => loadAuditLogs(auditPagination?.page || 1)}
+            onRefresh={(page) => loadAuditLogs(page || auditPagination?.page || 1)}
+            onFilterChange={setAuditFilters}
+            filters={auditFilters}
           />
         )}
+
+        {activeTab === 'system' && <SystemTab />}
       </main>
+
+      {/* Edit User Modal */}
+      {showEditModal && selectedUser && (
+        <EditUserModal
+          user={selectedUser}
+          onClose={() => setShowEditModal(false)}
+          onSave={async (userId, updates) => {
+            try {
+              await adminAPI.updateUser(userId, updates);
+              setShowEditModal(false);
+              loadUsers(userPagination?.page || 1);
+            } catch (error) {
+              alert(error.response?.data?.message || 'Error updating user');
+            }
+          }}
+        />
+      )}
 
       {/* Delete User Modal */}
       {showDeleteModal && (

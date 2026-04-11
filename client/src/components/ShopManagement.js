@@ -11,8 +11,6 @@ const ShopForm = ({ shop, areas, onClose, onSubmit, onAddArea, viewMode }) => {
     contact: '',
   });
   const [loading, setLoading] = useState(false);
-  const [showAddNew, setShowAddNew] = useState(false);
-  const [newAreaValue, setNewAreaValue] = useState('');
 
   useEffect(() => {
     console.log('ShopForm - shop prop changed:', shop);

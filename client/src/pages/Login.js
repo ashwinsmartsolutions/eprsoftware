@@ -92,6 +92,9 @@ const Login = () => {
         } else if (user.role === 'franchise') {
           console.log('Navigating to /franchise/dashboard');
           navigate('/franchise/dashboard', { replace: true });
+        } else if (user.role === 'super_admin') {
+          console.log('Navigating to /admin/dashboard');
+          navigate('/admin/dashboard', { replace: true });
         } else {
           console.error('Unknown user role:', user.role);
           dispatch({

@@ -113,7 +113,7 @@ export const AuthProvider = ({ children }) => {
       const response = await authAPI.login(credentials);
       
       if (response.data.success) {
-        const { user, token, expiresIn } = response.data;
+        const { user, token } = response.data;
         
         // Calculate token expiry (2 hours from now)
         const expiryTime = new Date();
