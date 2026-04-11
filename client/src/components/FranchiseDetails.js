@@ -63,6 +63,18 @@ const FranchiseDetails = () => {
       if (response.data.success) {
         const newDetails = response.data.details;
         
+        // Debug logging with timestamp
+        console.log(`[FranchiseDetails ${new Date().toLocaleTimeString()}] Franchise: ${newDetails.franchise?.name} (${id})`);
+        console.log('[FranchiseDetails] Current Stock by Flavor:', newDetails.stats?.currentStock);
+        console.log('[FranchiseDetails] Sales by Flavor:', newDetails.stats?.salesByFlavor);
+        console.log('[FranchiseDetails] Allocated to Shops:', newDetails.stats?.allocatedToShopsByFlavor);
+        console.log('[FranchiseDetails] Total Stats:', {
+          totalSales: newDetails.stats?.totalSales,
+          totalStockAllocated: newDetails.stats?.totalStockAllocated,
+          totalShops: newDetails.stats?.totalShops,
+          totalReturns: newDetails.stats?.totalReturns
+        });
+        
         // Track which values changed for visual highlighting
         if (prevDetailsRef.current && details) {
           const changed = new Set();
@@ -114,6 +126,7 @@ const FranchiseDetails = () => {
   };
 
   const handleManualRefresh = () => {
+    console.log('[FranchiseDetails] Manual refresh triggered for franchise:', id);
     fetchFranchiseDetails(true);
   };
 

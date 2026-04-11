@@ -159,20 +159,20 @@ const getFranchiseDetails = async (req, res) => {
       });
     });
 
-    // Calculate REAL current stock in shops (allocated - sales)
+    // Calculate REAL current stock at FRANCHISE level (owner allocated - allocated to shops)
     const currentStock = {};
     const flavors = ['orange', 'blueberry', 'jira', 'lemon', 'mint', 'guava'];
     flavors.forEach(flavor => {
-      const allocated = allocatedToShopsByFlavor[flavor] || 0;
-      const sold = salesByFlavor[flavor] || 0;
-      currentStock[flavor] = Math.max(0, allocated - sold);
+      const allocatedByOwner = totalStockAllocatedByOwner[flavor] || 0;
+      const allocatedToShops = allocatedToShopsByFlavor[flavor] || 0;
+      currentStock[flavor] = Math.max(0, allocatedByOwner - allocatedToShops);
     });
 
     console.log(`[FranchiseDetails] Franchise: ${franchise.name}`);
     console.log(`[FranchiseDetails] Shops: ${shops.length}, Sales: ${totalSales}, Returns: ${totalReturns}`);
+    console.log(`[FranchiseDetails] Owner allocated:`, totalStockAllocatedByOwner);
     console.log(`[FranchiseDetails] Allocated to shops:`, allocatedToShopsByFlavor);
-    console.log(`[FranchiseDetails] Sales by flavor:`, salesByFlavor);
-    console.log(`[FranchiseDetails] Current stock:`, currentStock);
+    console.log(`[FranchiseDetails] Current stock at franchise:`, currentStock);
 
     res.json({
       success: true,
