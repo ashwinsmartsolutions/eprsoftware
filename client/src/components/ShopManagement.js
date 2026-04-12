@@ -358,10 +358,10 @@ const ShopManagement = () => {
       </div>
 
       {/* Controls Bar */}
-      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm">
+      <div className="flex flex-row gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm">
         {/* Area Filter */}
         {!showAddArea && (
-          <div className="relative">
+          <div className="relative flex-1 min-w-0">
             <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <select
               value={selectedArea}
@@ -373,7 +373,7 @@ const ShopManagement = () => {
                   setSelectedArea(value);
                 }
               }}
-              className="w-full sm:w-48 pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all cursor-pointer appearance-none"
+              className="w-full sm:w-48 pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all cursor-pointer appearance-none truncate"
             >
               <option value="">All Areas</option>
               {areas.map((area) => (
@@ -384,33 +384,33 @@ const ShopManagement = () => {
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           </div>
         )}
-        
+
         {/* Action Buttons */}
-        <div className="flex gap-2 sm:ml-auto">
+        <div className="flex gap-2 flex-shrink-0">
           <button
             onClick={() => {
               setSelectedShop(null);
               setShowForm(true);
             }}
-            className="btn btn-primary px-4 py-2.5"
+            className="btn btn-primary px-3 sm:px-4 py-2.5 whitespace-nowrap"
           >
-            <Plus className="h-4 w-4 mr-1.5" />
-            <span>Add Shop</span>
+            <Plus className="h-4 w-4 sm:mr-1.5" />
+            <span className="hidden sm:inline">Add Shop</span>
           </button>
           {!deleteMode ? (
             <button
               onClick={() => setDeleteMode(true)}
-              className="btn btn-danger px-4 py-2.5"
+              className="btn btn-danger px-3 sm:px-4 py-2.5"
             >
               <Trash2 className="h-4 w-4" />
             </button>
           ) : (
             <button
               onClick={cancelDeleteMode}
-              className="btn btn-secondary px-4 py-2.5"
+              className="btn btn-secondary px-3 sm:px-4 py-2.5 whitespace-nowrap"
             >
-              <X className="h-4 w-4 mr-1.5" />
-              <span>Cancel</span>
+              <X className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Cancel</span>
             </button>
           )}
         </div>
