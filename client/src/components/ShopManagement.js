@@ -319,46 +319,46 @@ const ShopManagement = () => {
     );
   }
   return (
-    <div className="space-y-6">
-      {/* Header Section */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-        <div>
-          <h2 className="heading-2 flex items-center gap-2">
-            <Store className="h-6 w-6 text-primary-600" />
+    <div className="space-y-3 sm:space-y-4">
+      {/* Header Section - Compact for mobile */}
+      <div className="flex flex-col gap-2 sm:gap-3">
+        {/* Title Row */}
+        <div className="flex items-center justify-between">
+          <h2 className="heading-2 flex items-center gap-2 text-lg sm:text-xl">
+            <Store className="h-5 w-5 sm:h-6 sm:w-6 text-primary-600" />
             Shop Management
           </h2>
-          <p className="text-gray-600 mt-1">Manage your shops, track sales and returns</p>
+          {/* Total Shops - Mobile inline */}
+          <div className="bg-blue-50 px-3 py-1.5 rounded-lg sm:hidden">
+            <span className="text-xs text-blue-600 font-medium">Total: </span>
+            <span className="text-base font-bold text-blue-700">{filteredShops.length}</span>
+          </div>
         </div>
         
-        {/* Stats Overview */}
-        <div className="flex gap-3">
-          <div className="bg-blue-50 px-4 py-2 rounded-xl">
-            <span className="text-xs text-blue-600 font-medium block">Total Shops</span>
-            <span className="text-xl font-bold text-blue-700">{filteredShops.length}</span>
+        {/* Search + Stats Row */}
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center">
+          {/* Search - Full width on mobile, inline on desktop */}
+          <div className="relative flex-1 sm:max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search shops..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+            />
           </div>
-          <div className="bg-emerald-50 px-4 py-2 rounded-xl">
-            <span className="text-xs text-emerald-600 font-medium block">Active</span>
-            <span className="text-xl font-bold text-emerald-700">
-              {filteredShops.filter(s => s.status === 'active').length}
-            </span>
+          
+          {/* Total Shops - Desktop only */}
+          <div className="hidden sm:block bg-blue-50 px-3 py-2 rounded-xl">
+            <span className="text-xs text-blue-600 font-medium block">Total Shops</span>
+            <span className="text-lg font-bold text-blue-700">{filteredShops.length}</span>
           </div>
         </div>
       </div>
 
       {/* Controls Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-        {/* Search */}
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search shops..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-          />
-        </div>
-        
+      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 bg-white p-3 sm:p-4 rounded-xl border border-gray-100 shadow-sm">
         {/* Area Filter */}
         {!showAddArea && (
           <div className="relative">
@@ -471,13 +471,6 @@ const ShopManagement = () => {
                   </div>
                   <div className="min-w-0">
                     <h3 className="font-semibold text-gray-900 truncate">{shop.name}</h3>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      shop.status === 'active'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {shop.status === 'active' ? '● Active' : '○ Inactive'}
-                    </span>
                   </div>
                 </div>
                 {!deleteMode && (
