@@ -450,9 +450,14 @@ const DistributeStock = () => {
                     <div key={flavor.key} className="flex items-center justify-between gap-2 sm:gap-3 py-2 px-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                         <div className={`w-4 h-4 rounded-full ${flavor.color} flex-shrink-0 shadow-sm`}></div>
-                        <label className={`text-sm font-semibold ${flavor.textColor} truncate`}>
-                          {flavor.label}
-                        </label>
+                        <div className="min-w-0 flex-1">
+                          <label className={`text-sm font-semibold ${flavor.textColor} truncate block`}>
+                            {flavor.label}
+                          </label>
+                          <div className="text-xs text-gray-500 sm:hidden mt-0.5">
+                            Available: <span className="font-medium">{franchiseStock[flavor.key] || 0}</span>
+                          </div>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
                         <div className="text-xs text-gray-500 hidden sm:block whitespace-nowrap">
