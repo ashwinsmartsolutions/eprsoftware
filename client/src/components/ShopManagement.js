@@ -328,11 +328,6 @@ const ShopManagement = () => {
             <Store className="h-5 w-5 sm:h-6 sm:w-6 text-primary-600" />
             Shop Management
           </h2>
-          {/* Total Shops - Mobile inline */}
-          <div className="bg-blue-50 px-3 py-1.5 rounded-lg sm:hidden">
-            <span className="text-xs text-blue-600 font-medium">Total: </span>
-            <span className="text-base font-bold text-blue-700">{filteredShops.length}</span>
-          </div>
         </div>
         
         {/* Search + Stats Row */}
