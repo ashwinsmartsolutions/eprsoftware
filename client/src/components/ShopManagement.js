@@ -345,7 +345,7 @@ const ShopManagement = () => {
           </div>
           
           {/* Total Shops - Desktop only */}
-          <div className="hidden sm:block bg-blue-50 px-3 py-2 rounded-xl">
+          <div className="hidden sm:!block bg-blue-50 px-3 py-2 rounded-xl">
             <span className="text-xs text-blue-600 font-medium block">Total Shops</span>
             <span className="text-lg font-bold text-blue-700">{filteredShops.length}</span>
           </div>
